@@ -54,6 +54,14 @@ nldd-navigation-split-view {
   min-inline-size: 0;
 }
 
+/* Titel en bewerkknop op één regel in een organogramkaart. */
+.kaartkop {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--primitives-space-8);
+}
+
 /* Bezettingsbalkje in een organogramkaart. */
 .bezetting {
   display: flex;

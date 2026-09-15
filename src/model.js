@@ -75,12 +75,21 @@ export function plekkenVan(state, scenarioId) {
   ];
 }
 
-/** persoonId -> plek, voor snelle lookups in de views. */
-export function toewijzingIndex(scenario) {
+/**
+ * persoonId -> plek, voor snelle lookups in de views.
+ *
+ * Geef `plekken` mee om toewijzingen naar plekken die in dit scenario niet
+ * bestaan te negeren. Zonder die controle telt iemand als geplaatst terwijl
+ * zijn plek weg is, en verdwijnt hij uit "wie heeft nog geen plek". Dat kan
+ * gebeuren na een import of bij data die elders is bewerkt.
+ */
+export function toewijzingIndex(scenario, plekken = null) {
+  const bestaat = plekken ? new Set(plekken.map((p) => p.id)) : null;
   const perPersoon = new Map();
   const perPlek = new Map();
   for (const [plekId, persoonId] of Object.entries(scenario.toewijzingen ?? {})) {
     if (!persoonId) continue;
+    if (bestaat && !bestaat.has(plekId)) continue;
     perPlek.set(plekId, persoonId);
     if (!perPersoon.has(persoonId)) perPersoon.set(persoonId, []);
     perPersoon.get(persoonId).push(plekId);
@@ -97,7 +106,7 @@ export function toewijzingIndex(scenario) {
 export function toets(state, scenarioId) {
   const scenario = state.scenarios.find((s) => s.id === scenarioId);
   const plekken = plekkenVan(state, scenarioId);
-  const { perPersoon, perPlek } = toewijzingIndex(scenario);
+  const { perPersoon, perPlek } = toewijzingIndex(scenario, plekken);
   const eenheidById = new Map(state.eenheden.map((e) => [e.id, e]));
   const persoonById = new Map(state.personen.map((p) => [p.id, p]));
   const norm = { ...standaardNormen, ...(state.normen ?? {}) };

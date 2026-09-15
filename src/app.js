@@ -140,7 +140,7 @@ function signaalCel(signaal) {
 function signaalVoor(viewId, state, resultaat) {
   const sc = scenario(state);
   const plekken = plekkenVan(state, sc.id);
-  const { perPlek } = toewijzingIndex(sc);
+  const { perPlek } = toewijzingIndex(sc, plekken);
   const persoonById = new Map(state.personen.map((p) => [p.id, p]));
 
   if (viewId === 'mensen') {
@@ -148,7 +148,7 @@ function signaalVoor(viewId, state, resultaat) {
     // een 1 naast twee zichtbare waarschuwingen.
     const zonderPlek = resultaat.samenvatting.aantalZonderPlek;
     const twijfel = state.personen.filter((persoon) => {
-      const plekId = toewijzingIndex(sc).perPersoon.get(persoon.id)?.[0];
+      const plekId = toewijzingIndex(sc, plekken).perPersoon.get(persoon.id)?.[0];
       const plek = plekken.find((p) => p.id === plekId);
       if (!plek) return false;
       return (matchKwaliteit(persoon, plek)?.score ?? 100) < 70;
@@ -255,6 +255,20 @@ function toonScenarios() {
               : maak('nldd-tag', { color: 'groen', size: 'sm', icon: 'check', variant: 'icon',
                                    'accessible-label': 'Geen bevindingen' }),
         ]),
+        maak('nldd-cell', { width: 'fit-content' }, [
+          maak('nldd-icon-button', {
+            icon: 'pencil',
+            size: 'sm',
+            variant: 'neutral-transparent',
+            'accessible-label': `Scenario ${sc.naam} bewerken`,
+            on: {
+              click: (e) => {
+                e.stopPropagation();
+                openScenarioSheet(sc.id);
+              },
+            },
+          }),
+        ]),
       ]
     );
     lijst.append(item);
@@ -308,7 +322,7 @@ function toonFormatie() {
   const state = huidigeState();
   const sc = scenario(state);
   const plekken = plekkenVan(state, sc.id);
-  const { perPlek } = toewijzingIndex(sc);
+  const { perPlek } = toewijzingIndex(sc, plekken);
   const persoonById = new Map(state.personen.map((p) => [p.id, p]));
   const houder = leeg(el('view'));
 
@@ -453,7 +467,7 @@ function plekRij(plek, perPlek, persoonById) {
 function vacatureKnop(plek) {
   const state = huidigeState();
   const sc = scenario(state);
-  const { perPersoon } = toewijzingIndex(sc);
+  const { perPersoon } = toewijzingIndex(sc, plekkenVan(state, sc.id));
 
   const triggerId = `vacature-${plek.id}`;
   const popoverId = `kies-${plek.id}`;
@@ -695,7 +709,7 @@ function toonOrganogram() {
   const state = huidigeState();
   const sc = scenario(state);
   const plekken = plekkenVan(state, sc.id);
-  const { perPlek } = toewijzingIndex(sc);
+  const { perPlek } = toewijzingIndex(sc, plekken);
   const houder = leeg(el('view'));
 
   const container = maak('nldd-container', { padding: '24', 'sm-padding': '16', layout: 'stack', gap: '16' });
@@ -734,7 +748,16 @@ function toonOrganogram() {
 
       const kaart = maak('nldd-card', { class: 'organogram__kaart' }, [
         maak('nldd-container', { padding: '16', layout: 'stack', gap: '8' }, [
-          maak('nldd-title', { size: '5' }, [maak('h3', {}, [eenheid.naam])]),
+          maak('div', { class: 'kaartkop' }, [
+            maak('nldd-title', { size: '5' }, [maak('h3', {}, [eenheid.naam])]),
+            maak('nldd-icon-button', {
+              icon: 'pencil',
+              size: 'sm',
+              variant: 'neutral-transparent',
+              'accessible-label': `${eenheid.naam} bewerken`,
+              on: { click: () => openEenheidSheet(eenheid.id) },
+            }),
+          ]),
           maak('nldd-tag', { color: soort.color, size: 'sm', text: soort.label }),
           maak('nldd-text', { size: 'sm', color: 'secondary' }, [
             `${formatFte(fte)} fte, ${bezet} van ${eigen.length} bezet`,
@@ -748,6 +771,19 @@ function toonOrganogram() {
   }
 
   container.append(organogram);
+
+  // Teams horen bij de basis, niet bij één scenario: een team dat je hier
+  // toevoegt bestaat in elk scenario.
+  container.append(
+    maak('nldd-button', {
+      variant: 'secondary',
+      size: 'sm',
+      'start-icon': 'plus',
+      text: 'Team erbij',
+      on: { click: () => eenheidToevoegen() },
+    })
+  );
+
   houder.append(container);
 }
 
@@ -757,7 +793,7 @@ function toonMensen() {
   const state = huidigeState();
   const sc = scenario(state);
   const plekken = plekkenVan(state, sc.id);
-  const { perPersoon } = toewijzingIndex(sc);
+  const { perPersoon } = toewijzingIndex(sc, plekken);
   const plekById = new Map(plekken.map((p) => [p.id, p]));
   const eenheidById = new Map(state.eenheden.map((e) => [e.id, e]));
   const houder = leeg(el('view'));
@@ -1051,9 +1087,10 @@ function toonInspector() {
 
   if (selectie.soort === 'plek') {
     const sc = scenario(state);
-    const plek = plekkenVan(state, sc.id).find((p) => p.id === selectie.id);
+    const plekken = plekkenVan(state, sc.id);
+    const plek = plekken.find((p) => p.id === selectie.id);
     if (!plek) return;
-    const { perPlek } = toewijzingIndex(sc);
+    const { perPlek } = toewijzingIndex(sc, plekken);
     const persoon = state.personen.find((p) => p.id === perPlek.get(plek.id));
     const groep = functiegroep(plek.functiegroep);
     const eenheid = state.eenheden.find((e) => e.id === plek.eenheidId);
@@ -1105,8 +1142,8 @@ function toonInspector() {
     const persoon = state.personen.find((p) => p.id === selectie.id);
     if (!persoon) return;
     const sc = scenario(state);
-    const { perPersoon } = toewijzingIndex(sc);
     const plekken = plekkenVan(state, sc.id);
+    const { perPersoon } = toewijzingIndex(sc, plekken);
     const plekId = perPersoon.get(persoon.id)?.[0];
     const plek = plekken.find((p) => p.id === plekId);
 
@@ -1148,7 +1185,7 @@ function toonInspector() {
     }
 
     // Waar zou deze persoon nog meer kunnen? Helpt bij het schuiven.
-    const vrij = plekken.filter((p) => !toewijzingIndex(sc).perPlek.has(p.id));
+    const vrij = plekken.filter((p) => !toewijzingIndex(sc, plekken).perPlek.has(p.id));
     if (vrij.length) {
       const gerangschikt = vrij
         .map((p) => ({ plek: p, match: matchKwaliteit(persoon, p) }))
@@ -1400,16 +1437,15 @@ function bewaarPlek() {
       return;
     }
     // Een basisplek wijzigen binnen een scenario: maak er een scenario-eigen
-    // versie van, zodat het andere scenario ongemoeid blijft.
+    // versie van, zodat het andere scenario ongemoeid blijft. De kopie houdt
+    // hetzelfde id, dus de toewijzing blijft vanzelf kloppen; plekkenVan()
+    // filtert verwijderdePlekken alleen over de basis, niet over extraPlekken.
     const basis = s.plekken.find((p) => p.id === sheetPlekId);
     if (basis) {
       sc.verwijderdePlekken = sc.verwijderdePlekken ?? [];
       if (!sc.verwijderdePlekken.includes(sheetPlekId)) sc.verwijderdePlekken.push(sheetPlekId);
       sc.extraPlekken = sc.extraPlekken ?? [];
       sc.extraPlekken.push({ ...basis, ...patch });
-      // De toewijzing verhuist mee.
-      const persoonId = sc.toewijzingen[sheetPlekId];
-      if (persoonId) sc.toewijzingen[sheetPlekId] = persoonId;
     }
   });
 
@@ -1428,6 +1464,175 @@ function verwijderPlek(plekId) {
   });
   if (selectie?.soort === 'plek' && selectie.id === plekId) selectie = null;
   el('plek-sheet').hide();
+}
+
+// ---------------------------------------------------------------- teams beheren
+
+let sheetEenheidId = null;
+
+function eenheidToevoegen() {
+  const id = nieuwId('e');
+  const state = huidigeState();
+  muteer('Team toegevoegd', (s) => {
+    s.eenheden.push({
+      id,
+      naam: '',
+      soort: 'core',
+      // Onder de bovenste eenheid hangen, zodat het team in de hark past.
+      parentId: state.eenheden.find((e) => !e.parentId)?.id ?? null,
+    });
+  });
+  openEenheidSheet(id);
+}
+
+/**
+ * Teams staan op de gedeelde basis, dus een wijziging geldt in elk scenario.
+ * Dat is bewust: twee scenario's vergelijken heeft alleen zin als ze dezelfde
+ * organisatie beschrijven.
+ */
+function openEenheidSheet(eenheidId) {
+  sheetEenheidId = eenheidId;
+  const state = huidigeState();
+  const eenheid = state.eenheden.find((e) => e.id === eenheidId);
+  if (!eenheid) return;
+
+  const houder = leeg(el('eenheid-sheet-inhoud'));
+  const container = maak('nldd-container', { padding: '24', layout: 'stack', gap: '16' });
+
+  container.append(
+    maak('nldd-title', { size: '4' }, [
+      maak('h2', {}, [eenheid.naam ? 'Team bewerken' : 'Nieuw team']),
+    ])
+  );
+
+  const form = maak('nldd-form', { id: 'eenheid-form' });
+
+  form.append(
+    maak('nldd-form-field', { label: 'Naam' }, [
+      maak('nldd-text-field', { name: 'naam', value: eenheid.naam ?? '' }),
+    ])
+  );
+
+  const soort = maak('select', { name: 'soort' });
+  for (const [id, info] of Object.entries(EENHEID_SOORT)) {
+    const optie = maak('option', { value: id }, [info.label]);
+    if (id === eenheid.soort) optie.setAttribute('selected', '');
+    soort.append(optie);
+  }
+  form.append(
+    maak('nldd-form-field', {
+      label: 'Soort',
+      'supporting-label': 'Bepaalt de verhouding kern tegenover doorbraak in de toets',
+    }, [maak('nldd-dropdown', {}, [soort])])
+  );
+
+  // Een team kan niet onder zichzelf hangen, en ook niet onder zijn eigen
+  // nakomelingen: dat maakt een lus in de hark.
+  const verboden = nakomelingen(state.eenheden, eenheid.id);
+  const ouder = maak('select', { name: 'parent' });
+  ouder.append(maak('option', { value: '' }, ['(bovenaan)']));
+  for (const kandidaat of state.eenheden) {
+    if (kandidaat.id === eenheid.id || verboden.has(kandidaat.id)) continue;
+    const optie = maak('option', { value: kandidaat.id }, [kandidaat.naam || '(naamloos)']);
+    if (kandidaat.id === eenheid.parentId) optie.setAttribute('selected', '');
+    ouder.append(optie);
+  }
+  form.append(
+    maak('nldd-form-field', { label: 'Valt onder' }, [maak('nldd-dropdown', {}, [ouder])])
+  );
+
+  container.append(form);
+  container.append(
+    maak('nldd-button', {
+      variant: 'primary',
+      text: 'Opslaan',
+      on: { click: () => bewaarEenheid() },
+    })
+  );
+
+  container.append(maak('nldd-spacer', { size: '24' }));
+  container.append(maak('nldd-divider', {}));
+
+  // Zeggen wat verwijderen kost voordat iemand erop drukt.
+  const sc = scenario(state);
+  const raakt = plekkenVan(state, sc.id).filter((p) => p.eenheidId === eenheid.id).length;
+  const kinderen = state.eenheden.filter((e) => e.parentId === eenheid.id).length;
+  if (raakt || kinderen) {
+    const delen = [];
+    if (raakt) delen.push(`${raakt} ${raakt === 1 ? 'plek verdwijnt' : 'plekken verdwijnen'} mee`);
+    if (kinderen) {
+      delen.push(
+        `${kinderen} ${kinderen === 1 ? 'onderliggend team schuift' : 'onderliggende teams schuiven'} omhoog`
+      );
+    }
+    container.append(
+      maak('nldd-text', { size: 'sm', color: 'secondary' }, [`${formatOpsomming(delen)}.`])
+    );
+  }
+  container.append(
+    maak('nldd-button', {
+      variant: 'destructive',
+      size: 'sm',
+      text: 'Team verwijderen',
+      on: { click: () => verwijderEenheid(eenheid.id) },
+    })
+  );
+
+  houder.append(container);
+  el('eenheid-sheet').show();
+}
+
+/** Alle eenheden onder deze, zodat je een team niet onder zijn eigen kind hangt. */
+function nakomelingen(eenheden, id) {
+  const gevonden = new Set();
+  let laag = [id];
+  while (laag.length) {
+    const kinderen = eenheden.filter((e) => laag.includes(e.parentId)).map((e) => e.id);
+    for (const kind of kinderen) gevonden.add(kind);
+    laag = kinderen;
+  }
+  return gevonden;
+}
+
+function bewaarEenheid() {
+  const form = el('eenheid-form');
+  const lees = (naam) => form.querySelector(`[name="${naam}"]`)?.value ?? '';
+  const naam = lees('naam').trim() || 'Naamloos team';
+  const soort = lees('soort');
+  const parentId = lees('parent') || null;
+
+  muteer(`Team ${naam} gewijzigd`, (s) => {
+    const eenheid = s.eenheden.find((e) => e.id === sheetEenheidId);
+    if (eenheid) Object.assign(eenheid, { naam, soort, parentId });
+  });
+
+  el('eenheid-sheet').hide();
+}
+
+function verwijderEenheid(eenheidId) {
+  muteer('Team verwijderd', (s) => {
+    const eenheid = s.eenheden.find((e) => e.id === eenheidId);
+    const nieuweOuder = eenheid?.parentId ?? null;
+
+    s.eenheden = s.eenheden.filter((e) => e.id !== eenheidId);
+    // Onderliggende teams schuiven een laag omhoog in plaats van te verdwijnen.
+    for (const kind of s.eenheden) {
+      if (kind.parentId === eenheidId) kind.parentId = nieuweOuder;
+    }
+
+    // Plekken van dit team verdwijnen uit elk scenario, inclusief hun
+    // toewijzingen, anders blijven mensen aan een spookplek hangen.
+    const weg = new Set(s.plekken.filter((p) => p.eenheidId === eenheidId).map((p) => p.id));
+    s.plekken = s.plekken.filter((p) => p.eenheidId !== eenheidId);
+    for (const sc of s.scenarios) {
+      for (const plek of sc.extraPlekken ?? []) {
+        if (plek.eenheidId === eenheidId) weg.add(plek.id);
+      }
+      sc.extraPlekken = (sc.extraPlekken ?? []).filter((p) => p.eenheidId !== eenheidId);
+      for (const plekId of weg) delete sc.toewijzingen[plekId];
+    }
+  });
+  el('eenheid-sheet').hide();
 }
 
 // ---------------------------------------------------------------- mensen beheren
@@ -1539,7 +1744,7 @@ function openPersoonSheet(persoonId) {
   container.append(maak('nldd-divider', {}));
 
   const sc = scenario(state);
-  const { perPersoon } = toewijzingIndex(sc);
+  const { perPersoon } = toewijzingIndex(sc, plekkenVan(state, sc.id));
   const staatErgens = perPersoon.has(persoon.id);
   if (staatErgens) {
     container.append(
@@ -1602,17 +1807,120 @@ function scenarioToevoegen() {
   const state = huidigeState();
   const bron = scenario(state);
   const id = nieuwId('s');
-  muteer('Scenario toegevoegd', (s) => {
+  // "(kopie)" niet stapelen bij een kopie van een kopie.
+  const stam = bron.naam.replace(/\s*\(kopie(?:\s\d+)?\)\s*$/, '');
+  const bestaand = state.scenarios.filter((s) => s.naam.startsWith(`${stam} (kopie`)).length;
+  const naam = bestaand ? `${stam} (kopie ${bestaand + 1})` : `${stam} (kopie)`;
+
+  muteer(`Scenario gekopieerd van ${bron.naam}`, (s) => {
     s.scenarios.push({
       id,
-      naam: `${bron.naam} (kopie)`,
-      beschrijving: 'Variant om mee te schuiven',
+      naam,
+      beschrijving: `Gekopieerd van ${bron.naam}`,
+      gekopieerdVan: bron.naam,
       toewijzingen: { ...bron.toewijzingen },
       extraPlekken: structuredClone(bron.extraPlekken ?? []),
       verwijderdePlekken: [...(bron.verwijderdePlekken ?? [])],
     });
     s.actiefScenario = id;
   });
+  // Meteen openen: je kopieert een scenario om het een eigen naam en richting
+  // te geven, niet om "(kopie)" te laten staan.
+  openScenarioSheet(id);
+}
+
+let sheetScenarioId = null;
+
+function openScenarioSheet(scenarioId) {
+  sheetScenarioId = scenarioId;
+  const state = huidigeState();
+  const sc = state.scenarios.find((x) => x.id === scenarioId);
+  if (!sc) return;
+
+  const houder = leeg(el('scenario-sheet-inhoud'));
+  const container = maak('nldd-container', { padding: '24', layout: 'stack', gap: '16' });
+
+  container.append(maak('nldd-title', { size: '4' }, [maak('h2', {}, ['Scenario'])]));
+
+  if (sc.gekopieerdVan) {
+    container.append(
+      maak('nldd-inline-dialog', {
+        icon: 'copy',
+        text: `Kopie van ${sc.gekopieerdVan}`,
+        'supporting-text':
+          'De plekken en toewijzingen zijn overgenomen. Mensen en teams zijn gedeeld, ' +
+          'dus die blijven hetzelfde in elk scenario.',
+      })
+    );
+  }
+
+  const form = maak('nldd-form', { id: 'scenario-form' });
+  form.append(
+    maak('nldd-form-field', { label: 'Naam' }, [
+      maak('nldd-text-field', { name: 'naam', value: sc.naam ?? '' }),
+    ])
+  );
+  form.append(
+    maak('nldd-form-field', {
+      label: 'Waar gaat deze variant over',
+      optional: true,
+      'supporting-label': 'Staat in de lijst en bij het vergelijken',
+    }, [
+      maak('nldd-multi-line-text-field', {
+        name: 'beschrijving',
+        rows: '3',
+        value: sc.beschrijving ?? '',
+      }),
+    ])
+  );
+
+  container.append(form);
+  container.append(
+    maak('nldd-button', {
+      variant: 'primary',
+      text: 'Opslaan',
+      on: { click: () => bewaarScenario() },
+    })
+  );
+
+  // Het laatste scenario weggooien laat niets over om naar te kijken.
+  if (state.scenarios.length > 1) {
+    container.append(maak('nldd-spacer', { size: '24' }));
+    container.append(maak('nldd-divider', {}));
+    container.append(
+      maak('nldd-button', {
+        variant: 'destructive',
+        size: 'sm',
+        text: 'Scenario verwijderen',
+        on: { click: () => verwijderScenario(sc.id) },
+      })
+    );
+  }
+
+  houder.append(container);
+  el('scenario-sheet').show();
+}
+
+function bewaarScenario() {
+  const form = el('scenario-form');
+  const lees = (naam) => form.querySelector(`[name="${naam}"]`)?.value ?? '';
+  const naam = lees('naam').trim() || 'Naamloos scenario';
+  const beschrijving = lees('beschrijving').trim();
+
+  muteer(`Scenario ${naam} gewijzigd`, (s) => {
+    const sc = s.scenarios.find((x) => x.id === sheetScenarioId);
+    if (sc) Object.assign(sc, { naam, beschrijving });
+  });
+
+  el('scenario-sheet').hide();
+}
+
+function verwijderScenario(scenarioId) {
+  muteer('Scenario verwijderd', (s) => {
+    s.scenarios = s.scenarios.filter((x) => x.id !== scenarioId);
+    if (s.actiefScenario === scenarioId) s.actiefScenario = s.scenarios[0].id;
+  });
+  el('scenario-sheet').hide();
 }
 
 // ---------------------------------------------------------------- import/export
@@ -1631,9 +1939,8 @@ function importeerBestand(bestand) {
   const lezer = new FileReader();
   lezer.onload = () => {
     try {
-      const nieuw = JSON.parse(String(lezer.result));
-      if (!nieuw.personen || !nieuw.scenarios) throw new Error('onverwachte inhoud');
-      vervangState(nieuw, 'Bestand geïmporteerd');
+      // vervangState normaliseert en gooit als het geen formatieplaat is.
+      vervangState(JSON.parse(String(lezer.result)), 'Bestand geïmporteerd');
     } catch {
       meldFout('Dit bestand kon niet worden gelezen. Verwacht is een eerder geëxporteerde formatieplaat.');
     }
