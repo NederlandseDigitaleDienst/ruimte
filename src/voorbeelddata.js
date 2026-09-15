@@ -1,13 +1,16 @@
 /**
- * Voorbeelddata: een digitale dienst binnen EZK, met een kernteam en twee
- * doorbraakprojecten. Bedoeld om de tool meteen gevuld te openen, zodat je
- * in een gesprek niet met een leeg scherm begint.
+ * Voorbeelddata: een digitale dienst met een kernteam en twee doorbraak-
+ * projecten. Bedoeld om de tool meteen gevuld te openen, zodat je in een
+ * gesprek niet met een leeg scherm begint.
  *
- * De namen zijn fictief. Vervang ze via import of door ze weg te gooien.
+ * De personen heten naar het NAVO-spelalfabet: onmiskenbaar verzonnen, zodat
+ * niemand ze voor een echte collega aanziet, en uit elkaar te houden als je
+ * er in een gesprek naar wijst. De rollen, schalen en structuur zijn wel
+ * realistisch, want daar gaat het gesprek over.
  */
 
 export const voorbeeldState = {
-  naam: 'Digitale dienst EZK',
+  naam: 'Digitale dienst (voorbeeld)',
   normen: {
     minEngineerRatio: 0.5,
     minDoorbraakRatio: 0.3,

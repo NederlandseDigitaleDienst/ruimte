@@ -28,6 +28,7 @@ import {
   formatEuro,
   formatFte,
   formatRedenen,
+  formatOpsomming,
   EENHEID_SOORT,
 } from './model.js';
 import { FUNCTIEGROEPEN, functiegroep, functiegroepenPerFamilie, FUNCTIEFAMILIES } from './fgr.js';
@@ -86,6 +87,7 @@ function toonViews() {
   const resultaat = toets(state, state.actiefScenario);
 
   for (const view of VIEWS) {
+    const signaal = signaalVoor(view.id, state, resultaat);
     const item = maak(
       'nldd-list-item',
       {
@@ -105,24 +107,115 @@ function toonViews() {
       [
         maak('nldd-title-cell', {
           text: view.naam,
-          'supporting-text': view.uitleg,
+          // Als er iets aandacht vraagt, zegt de regel wát dat is. Een kaal
+          // cijfer laat je raden of het om vacatures of om mensen gaat.
+          'supporting-text': signaal?.uitleg ?? view.uitleg,
+          color: signaal?.ernstig ? 'critical' : 'content',
           size: 6,
         }),
-        // Het aantal mensen zonder plek hoort naast "Mensen": daar los je het op.
-        view.id === 'mensen' && resultaat.samenvatting.aantalZonderPlek > 0
-          ? maak('nldd-cell', { width: 'fit-content' }, [
-              maak('nldd-tag', {
-                color: 'rood',
-                size: 'sm',
-                text: String(resultaat.samenvatting.aantalZonderPlek),
-                'accessible-label': `${resultaat.samenvatting.aantalZonderPlek} mensen zonder plek`,
-              }),
-            ])
-          : null,
+        signaalCel(signaal),
       ]
     );
     lijst.append(item);
   }
+}
+
+function signaalCel(signaal) {
+  if (!signaal) return null;
+  return maak('nldd-cell', { width: 'fit-content' }, [
+    maak('nldd-tag', {
+      color: signaal.ernstig ? 'rood' : 'donkergeel',
+      size: 'sm',
+      text: String(signaal.aantal),
+      'accessible-label': signaal.uitleg,
+    }),
+  ]);
+}
+
+/**
+ * Wat er in deze weergave aandacht vraagt. Elke weergave telt wat je dáár
+ * kunt oplossen, zodat een teller ook zegt waar je heen moet.
+ */
+
+function signaalVoor(viewId, state, resultaat) {
+  const sc = scenario(state);
+  const plekken = plekkenVan(state, sc.id);
+  const { perPlek } = toewijzingIndex(sc);
+  const persoonById = new Map(state.personen.map((p) => [p.id, p]));
+
+  if (viewId === 'mensen') {
+    // Alles wat in deze lijst een markering krijgt, telt mee. Anders staat er
+    // een 1 naast twee zichtbare waarschuwingen.
+    const zonderPlek = resultaat.samenvatting.aantalZonderPlek;
+    const twijfel = state.personen.filter((persoon) => {
+      const plekId = toewijzingIndex(sc).perPersoon.get(persoon.id)?.[0];
+      const plek = plekken.find((p) => p.id === plekId);
+      if (!plek) return false;
+      return (matchKwaliteit(persoon, plek)?.score ?? 100) < 70;
+    }).length;
+    const aantal = zonderPlek + twijfel;
+    if (!aantal) return null;
+
+    const delen = [];
+    if (zonderPlek) {
+      delen.push(
+        `${zonderPlek} ${zonderPlek === 1 ? 'persoon heeft' : 'mensen hebben'} nog geen plek`
+      );
+    }
+    if (twijfel) {
+      delen.push(
+        `${twijfel} ${twijfel === 1 ? 'plaatsing vraagt' : 'plaatsingen vragen'} aandacht`
+      );
+    }
+    return { aantal, ernstig: zonderPlek > 0, uitleg: formatOpsomming(delen) };
+  }
+
+  if (viewId === 'formatie') {
+    // Vacatures en plaatsingen die aandacht vragen: allebei op te lossen
+    // in deze weergave.
+    const vacant = plekken.filter((p) => !perPlek.has(p.id)).length;
+    const twijfel = plekken.filter((plek) => {
+      const persoon = persoonById.get(perPlek.get(plek.id));
+      if (!persoon) return false;
+      return (matchKwaliteit(persoon, plek)?.score ?? 100) < 70;
+    }).length;
+    const aantal = vacant + twijfel;
+    if (!aantal) return null;
+
+    const delen = [];
+    if (vacant) delen.push(`${vacant} ${vacant === 1 ? 'plek is' : 'plekken zijn'} vacant`);
+    if (twijfel) {
+      delen.push(
+        `${twijfel} ${twijfel === 1 ? 'plaatsing vraagt' : 'plaatsingen vragen'} aandacht`
+      );
+    }
+    return { aantal, ernstig: false, uitleg: formatOpsomming(delen) };
+  }
+
+  if (viewId === 'organogram') {
+    const teGroot = resultaat.bevindingen.find((b) => b.id === 'span-of-control');
+    if (teGroot?.status === 'ok') return null;
+    const aantal = teGroot?.eenheden?.length ?? 0;
+    if (!aantal) return null;
+    return { aantal, ernstig: false, uitleg: teGroot.samenvatting };
+  }
+
+  if (viewId === 'vergelijk') {
+    // Alleen melden als een ánder scenario er beter voor staat: dat is de
+    // reden om te gaan vergelijken.
+    const hier = resultaat.samenvatting.fouten;
+    const beter = state.scenarios.filter(
+      (s) => s.id !== sc.id && toets(state, s.id).samenvatting.fouten < hier
+    ).length;
+    if (!beter) return null;
+    return {
+      aantal: beter,
+      ernstig: false,
+      uitleg: `${beter} ${beter === 1 ? 'scenario heeft' : "scenario's hebben"} minder fouten dan dit`,
+    };
+  }
+
+  return null;
 }
 
 function toonScenarios() {
@@ -761,17 +854,22 @@ function persoonItem(persoon, plek, eenheid) {
   maakSleepbaar(titel, persoon);
   item.append(titel);
 
-  const herkomstTag = HERKOMST[persoon.herkomst];
-  if (herkomstTag) {
-    item.append(
-      maak('nldd-cell', { width: 'fit-content' }, [
-        maak('nldd-tag', { color: herkomstTag.color, size: 'sm', text: herkomstTag.label }),
-      ])
-    );
-  }
+  // Alle markeringen in één cel, met ruimte ertussen: los per cel plakken
+  // ze tegen elkaar aan.
+  const herkomst = herkomstVan(persoon);
+  const merken = [
+    herkomst.tag
+      ? maak('nldd-tooltip', { text: herkomst.kort ?? herkomst.label, placement: 'top' }, [
+          maak('nldd-tag', { color: herkomst.color, size: 'sm', text: herkomst.tag }),
+        ])
+      : null,
+    match && match.score < 70 ? letOpTag(match) : null,
+  ].filter(Boolean);
 
-  if (match && match.score < 70) {
-    item.append(maak('nldd-cell', { width: 'fit-content' }, [letOpTag(match)]));
+  if (merken.length) {
+    item.append(maak('nldd-cell', { width: 'fit-content' }, [
+      maak('div', { class: 'tagrij' }, merken),
+    ]));
   }
 
   item.append(
@@ -810,19 +908,46 @@ function letOpTag(match) {
   ]);
 }
 
-/** Alleen herkomst die afwijkt van "gewoon in dienst" verdient een tag. */
-const HERKOMST = {
-  werving: { label: 'te werven', color: 'hemelblauw' },
-  detachering: { label: 'detachering', color: 'paars' },
-  inhuur: { label: 'inhuur', color: 'oranje' },
-};
+/**
+ * Waar iemand vandaan komt. Het onderscheid tussen binnen en buiten het Rijk
+ * is er een van geld: externe inhuur telt mee voor het inhuurplafond,
+ * personeel van een andere rijksorganisatie niet.
+ *
+ * `tag` is null voor wie gewoon in dienst is: dat is de regel en verdient
+ * geen markering.
+ */
+const HERKOMSTEN = [
+  { id: 'bestaand', label: 'In dienst', tag: null },
+  { id: 'werving', label: 'Nog te werven', tag: 'te werven', color: 'hemelblauw' },
+  {
+    id: 'intern',
+    label: 'Intern ingehuurd of gedetacheerd',
+    kort: 'binnen het Rijk, bijvoorbeeld ODI of een ander departement',
+    tag: 'intern',
+    color: 'paars',
+  },
+  {
+    id: 'extern',
+    label: 'Externe inhuur',
+    kort: 'telt mee voor het inhuurplafond',
+    tag: 'extern',
+    color: 'oranje',
+  },
+];
 
-const HERKOMST_LABEL = {
-  bestaand: 'Bestaand',
-  werving: 'Nog te werven',
-  detachering: 'Detachering',
-  inhuur: 'Inhuur',
-};
+const HERKOMST_PER_ID = new Map(HERKOMSTEN.map((h) => [h.id, h]));
+
+/**
+ * Oude waarden uit eerder opgeslagen of geïmporteerde data blijven werken.
+ * "inhuur" was niet gesplitst; die lezen we als externe inhuur, want dat is
+ * wat er in de praktijk mee bedoeld werd.
+ */
+const HERKOMST_ALIAS = { detachering: 'intern', inhuur: 'extern' };
+
+function herkomstVan(persoon) {
+  const id = HERKOMST_ALIAS[persoon?.herkomst] ?? persoon?.herkomst ?? 'bestaand';
+  return HERKOMST_PER_ID.get(id) ?? HERKOMST_PER_ID.get('bestaand');
+}
 
 // ---------------------------------------------------------------- vergelijken
 
@@ -988,7 +1113,7 @@ function toonInspector() {
     container.append(maak('nldd-title', { size: '5' }, [maak('h2', {}, [persoon.naam])]));
     container.append(kenmerk('Huidige schaal', String(persoon.schaal ?? '—')));
     container.append(kenmerk('Beschikbaar', `${formatFte(persoon.fte ?? 1)} fte`));
-    container.append(kenmerk('Herkomst', HERKOMST_LABEL[persoon.herkomst] ?? 'Bestaand'));
+    container.append(kenmerk('Herkomst', herkomstVan(persoon).label));
     container.append(kenmerk('Staat op', plek ? plek.rol : 'nog geen plek'));
 
     // Waarom er "let op" bij deze persoon staat. Zonder dit is die tag een
@@ -1375,14 +1500,12 @@ function openPersoonSheet(persoonId) {
   );
 
   const herkomst = maak('select', { name: 'herkomst' });
-  for (const [waarde, label] of [
-    ['bestaand', 'Bestaand'],
-    ['werving', 'Nog te werven'],
-    ['detachering', 'Detachering'],
-    ['inhuur', 'Inhuur'],
-  ]) {
-    const optie = maak('option', { value: waarde }, [label]);
-    if (waarde === (persoon.herkomst ?? 'bestaand')) optie.setAttribute('selected', '');
+  const huidigeHerkomst = herkomstVan(persoon).id;
+  for (const soort of HERKOMSTEN) {
+    const optie = maak('option', { value: soort.id }, [
+      soort.kort ? `${soort.label} (${soort.kort})` : soort.label,
+    ]);
+    if (soort.id === huidigeHerkomst) optie.setAttribute('selected', '');
     herkomst.append(optie);
   }
   form.append(
