@@ -76,6 +76,24 @@ export function plekkenVan(state, scenarioId) {
 }
 
 /**
+ * Alle teams van een scenario. Net als bij plekken: de gedeelde basis, minus
+ * wat dit scenario weghaalt, plus wat het toevoegt.
+ *
+ * Teams zijn scenario-eigen omdat "wat als we een apart doorbraakteam
+ * optuigen" een structuurvraag is die je naast elkaar wilt kunnen leggen.
+ * Mensen blijven wel gedeeld: dezelfde pool, andere organisatie.
+ */
+export function eenhedenVan(state, scenarioId) {
+  const scenario = state.scenarios.find((s) => s.id === scenarioId);
+  if (!scenario) return state.eenheden ?? [];
+  const verwijderd = new Set(scenario.verwijderdeEenheden ?? []);
+  return [
+    ...(state.eenheden ?? []).filter((e) => !verwijderd.has(e.id)),
+    ...(scenario.extraEenheden ?? []),
+  ];
+}
+
+/**
  * persoonId -> plek, voor snelle lookups in de views.
  *
  * Geef `plekken` mee om toewijzingen naar plekken die in dit scenario niet
@@ -107,7 +125,8 @@ export function toets(state, scenarioId) {
   const scenario = state.scenarios.find((s) => s.id === scenarioId);
   const plekken = plekkenVan(state, scenarioId);
   const { perPersoon, perPlek } = toewijzingIndex(scenario, plekken);
-  const eenheidById = new Map(state.eenheden.map((e) => [e.id, e]));
+  const eenheden = eenhedenVan(state, scenarioId);
+  const eenheidById = new Map(eenheden.map((e) => [e.id, e]));
   const persoonById = new Map(state.personen.map((p) => [p.id, p]));
   const norm = { ...standaardNormen, ...(state.normen ?? {}) };
 
@@ -219,7 +238,7 @@ export function toets(state, scenarioId) {
 
   // 7. Span of control per leidinggevende.
   const teGroot = [];
-  for (const eenheid of state.eenheden) {
+  for (const eenheid of eenheden) {
     const aantal = plekken.filter((p) => p.eenheidId === eenheid.id).length;
     if (aantal > norm.maxSpanOfControl) teGroot.push({ eenheidId: eenheid.id, aantal });
   }

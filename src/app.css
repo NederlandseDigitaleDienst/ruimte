@@ -132,6 +132,15 @@ nldd-navigation-split-view {
   border-radius: var(--primitives-corner-radius-200, 8px);
 }
 
+/* Breek tussen woorden, nooit middenin: "Programmamanage-r" leest als een
+   typefout. Een woord dat echt niet past, kort af met een ellips. */
+nldd-table-row nldd-text-cell,
+nldd-table-row nldd-title-cell {
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
 /* Naam, markering en het kruisje naast elkaar in de Wie-kolom. */
 .wierij {
   display: flex;

@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { voorbeeldState } from '../src/voorbeelddata.js';
-import { plekkenVan, toewijzingIndex, toets } from '../src/model.js';
+import { plekkenVan, eenhedenVan, toewijzingIndex, toets } from '../src/model.js';
 import { normaliseer } from '../src/state.js';
 
 const verse = () => structuredClone(voorbeeldState);
@@ -78,11 +78,46 @@ test('een toewijzing naar een verdwenen plek laat niemand verdwijnen', () => {
   assert.ok(namen.includes('F. Foxtrot'), 'wie zijn plek kwijt is, staat zonder plek');
 });
 
-test('normen en eenheden gelden voor alle scenarios', () => {
+test('normen gelden voor alle scenarios', () => {
   const s = verse();
   assert.ok(s.normen, 'normen staan op de top-level state');
   assert.ok(!('normen' in s.scenarios[0]), 'en niet per scenario');
-  assert.ok(!('eenheden' in s.scenarios[0]));
+});
+
+test('een team toevoegen raakt alleen het eigen scenario', () => {
+  const s = verse();
+  s.scenarios[0].extraEenheden = [
+    { id: 'e-nieuw', naam: 'Doorbraak: toezicht', soort: 'doorbraak', parentId: 'e-mt' },
+  ];
+  assert.equal(eenhedenVan(s, 's-1').length, 7);
+  assert.equal(eenhedenVan(s, 's-2').length, 6, 'het andere scenario ziet het team niet');
+});
+
+test('een basisteam bewerken maakt een scenario-eigen kopie', () => {
+  const s = verse();
+  const sc = s.scenarios[0];
+  const basis = s.eenheden.find((e) => e.id === 'e-platform');
+  sc.verwijderdeEenheden = ['e-platform'];
+  sc.extraEenheden = [{ ...basis, naam: 'Platform en infra' }];
+
+  const hier = eenhedenVan(s, 's-1').filter((e) => e.id === 'e-platform');
+  const daar = eenhedenVan(s, 's-2').filter((e) => e.id === 'e-platform');
+  assert.equal(hier.length, 1, 'geen duplicaat');
+  assert.equal(hier[0].naam, 'Platform en infra');
+  assert.equal(daar[0].naam, 'Platform');
+});
+
+test('de soort van een scenario-eigen team telt mee in de toets', () => {
+  const s = verse();
+  const sc = s.scenarios[0];
+  // Maak Platform een doorbraakproject, alleen in scenario 1.
+  const basis = s.eenheden.find((e) => e.id === 'e-platform');
+  sc.verwijderdeEenheden = ['e-platform'];
+  sc.extraEenheden = [{ ...basis, soort: 'doorbraak' }];
+
+  const hier = toets(s, 's-1').bevindingen.find((b) => b.id === 'core-doorbraak');
+  const daar = toets(s, 's-2').bevindingen.find((b) => b.id === 'core-doorbraak');
+  assert.notEqual(hier.waarde, daar.waarde, 'de verhouding verschilt per scenario');
 });
 
 test('normaliseer vult ontbrekende velden aan', () => {

@@ -36,13 +36,23 @@ lijst iemand direct kunt plaatsen.
 
 ## Scenario's
 
-Een scenario is een variant op dezelfde basis. De mensen en de teams zijn
-gedeeld; de plekken en de toewijzingen zijn per scenario. Een plek bewerken in
-het ene scenario laat het andere ongemoeid, want er wordt een scenario-eigen
-kopie gemaakt.
+Een scenario is een variant op dezelfde basis. Wat erin zit en wat erbuiten:
 
-Zo kun je twee of drie varianten naast elkaar leggen zonder dat je de
-personeelslijst dupliceert.
+| Per scenario | Gedeeld over alle scenario's |
+|---|---|
+| Wie op welke plek staat | De mensen: wie er zijn, hun schaal, fte en expertise |
+| Plekken die je toevoegt of weghaalt | De normen: budgetplafond, engineersratio, span of control |
+| De teams en de hark | |
+
+Een plek of team bewerken in het ene scenario laat het andere ongemoeid: er
+wordt dan een scenario-eigen kopie gemaakt. Zo kun je "wat als we hier een
+apart doorbraakteam voor optuigen" naast de huidige opzet leggen.
+
+De mensen blijven bewust gedeeld. Dezelfde pool over een andere organisatie
+verdelen is waar het gesprek over gaat, en "vergeet ik niemand" klopt alleen
+als iedereen in elk scenario meetelt.
+
+Bij het vergelijken zie je welke teams een scenario wel of niet heeft.
 
 ## Ongedaan maken
 

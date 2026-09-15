@@ -120,11 +120,18 @@ export function normaliseer(rauw) {
     scenario.verwijderdePlekken = Array.isArray(scenario.verwijderdePlekken)
       ? scenario.verwijderdePlekken
       : [];
+    scenario.extraEenheden = Array.isArray(scenario.extraEenheden) ? scenario.extraEenheden : [];
+    scenario.verwijderdeEenheden = Array.isArray(scenario.verwijderdeEenheden)
+      ? scenario.verwijderdeEenheden
+      : [];
   }
 
   // Een plek zonder eenheid valt buiten elk team en is dan onzichtbaar in de
   // formatieweergave. Geef die gevallen een eigen kopje.
-  const bekendeEenheden = new Set(state.eenheden.map((e) => e.id));
+  const bekendeEenheden = new Set([
+    ...state.eenheden.map((e) => e.id),
+    ...state.scenarios.flatMap((s) => (s.extraEenheden ?? []).map((e) => e.id)),
+  ]);
   const alle = [...state.plekken, ...state.scenarios.flatMap((s) => s.extraPlekken)];
   const wees = alle.filter((p) => !bekendeEenheden.has(p.eenheidId));
   if (wees.length) {

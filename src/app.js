@@ -22,6 +22,7 @@ import {
 import {
   toets,
   plekkenVan,
+  eenhedenVan,
   toewijzingIndex,
   integraleKosten,
   matchKwaliteit,
@@ -334,7 +335,7 @@ function toonFormatie() {
 
   const container = maak('nldd-container', { padding: '24', 'sm-padding': '16', layout: 'stack', gap: '0' });
 
-  for (const eenheid of state.eenheden) {
+  for (const eenheid of eenhedenVan(state, sc.id)) {
     const eigen = plekken.filter((p) => p.eenheidId === eenheid.id);
     const soort = EENHEID_SOORT[eenheid.soort] ?? EENHEID_SOORT.staf;
     const fte = eigen.reduce((t, p) => t + (p.fte ?? 0), 0);
@@ -360,7 +361,9 @@ function toonFormatie() {
     // ruimte vallen eerst de functiegroep, dan de schaal en de fte weg.
     const tabel = maak('nldd-table', {
       'accessible-label': `Formatie ${eenheid.naam}`,
-      columns: 'minmax(180px,1.3fr) 150px 80px 60px minmax(170px,1fr) 44px',
+      // De functiegroep moet "Programmamanager" heel kwijt kunnen, anders
+      // breekt het woord middenin af.
+      columns: 'minmax(170px,1.2fr) minmax(190px,0.9fr) 80px 60px minmax(170px,1fr) 44px',
       'md-columns': 'minmax(150px,1.2fr) 80px 60px minmax(150px,1fr) 44px',
       'sm-columns': 'minmax(110px,1fr) minmax(110px,1fr) 44px',
     });
@@ -766,12 +769,13 @@ function toonOrganogram() {
   const organogram = maak('div', { class: 'organogram' });
 
   // Lagen op basis van parentId, zodat de hark klopt zonder recursie-gedoe.
-  const wortels = state.eenheden.filter((e) => !e.parentId);
+  const eenheden = eenhedenVan(state, sc.id);
+  const wortels = eenheden.filter((e) => !e.parentId);
   const lagen = [wortels];
   let vorige = wortels;
   while (vorige.length) {
     const ids = new Set(vorige.map((e) => e.id));
-    const volgende = state.eenheden.filter((e) => ids.has(e.parentId));
+    const volgende = eenheden.filter((e) => ids.has(e.parentId));
     if (!volgende.length) break;
     lagen.push(volgende);
     vorige = volgende;
@@ -845,7 +849,7 @@ function toonMensen() {
   const plekken = plekkenVan(state, sc.id);
   const { perPersoon } = toewijzingIndex(sc, plekken);
   const plekById = new Map(plekken.map((p) => [p.id, p]));
-  const eenheidById = new Map(state.eenheden.map((e) => [e.id, e]));
+  const eenheidById = new Map(eenhedenVan(state, sc.id).map((e) => [e.id, e]));
   const houder = leeg(el('view'));
 
   const zonder = state.personen.filter((p) => !perPersoon.has(p.id));
@@ -1037,6 +1041,44 @@ function herkomstVan(persoon) {
 
 // ---------------------------------------------------------------- vergelijken
 
+/**
+ * Welke teams alleen in dit scenario bestaan, en welke het juist mist ten
+ * opzichte van de andere. Leeg als alle scenario's dezelfde teams hebben.
+ */
+function teamVerschillen(state, sc) {
+  if (state.scenarios.length < 2) return [];
+
+  const hier = new Map(eenhedenVan(state, sc.id).map((e) => [e.id, e.naam]));
+  const elders = new Map();
+  for (const ander of state.scenarios) {
+    if (ander.id === sc.id) continue;
+    for (const eenheid of eenhedenVan(state, ander.id)) elders.set(eenheid.id, eenheid.naam);
+  }
+
+  const alleen = [...hier].filter(([id]) => !elders.has(id)).map(([, naam]) => naam);
+  const mist = [...elders].filter(([id]) => !hier.has(id)).map(([, naam]) => naam);
+  if (!alleen.length && !mist.length) return [];
+
+  const regels = [];
+  if (alleen.length) {
+    regels.push(
+      maak('div', { class: 'verschil' }, [
+        maak('nldd-tag', { color: 'groen', size: 'sm', text: 'alleen hier' }),
+        maak('nldd-text', { size: 'sm' }, [formatOpsomming(alleen)]),
+      ])
+    );
+  }
+  if (mist.length) {
+    regels.push(
+      maak('div', { class: 'verschil' }, [
+        maak('nldd-tag', { color: 'neutral', size: 'sm', text: 'niet hier' }),
+        maak('nldd-text', { size: 'sm' }, [formatOpsomming(mist)]),
+      ])
+    );
+  }
+  return regels;
+}
+
 function toonVergelijk() {
   const state = huidigeState();
   const houder = leeg(el('view'));
@@ -1054,6 +1096,7 @@ function toonVergelijk() {
     const isActief = sc.id === state.actiefScenario;
 
     const regels = [
+      ['Teams', String(eenhedenVan(state, sc.id).length)],
       ['Plekken', String(s.aantalPlekken)],
       ['Fte', formatFte(s.totaalFte)],
       ['Vacant', String(s.aantalVacant)],
@@ -1075,6 +1118,9 @@ function toonVergelijk() {
             ])
           )
         ),
+        // Teams die dit scenario wel of niet heeft en de andere niet: dat is
+        // vaak het hele punt van de variant.
+        ...teamVerschillen(state, sc),
         maak('nldd-divider', {}),
         maak(
           'div',
@@ -1143,7 +1189,7 @@ function toonInspector() {
     const { perPlek } = toewijzingIndex(sc, plekken);
     const persoon = state.personen.find((p) => p.id === perPlek.get(plek.id));
     const groep = functiegroep(plek.functiegroep);
-    const eenheid = state.eenheden.find((e) => e.id === plek.eenheidId);
+    const eenheid = eenhedenVan(state, sc.id).find((e) => e.id === plek.eenheidId);
 
     container.append(maak('nldd-title', { size: '5' }, [maak('h2', {}, [plek.rol])]));
     container.append(kenmerk('Team', eenheid?.naam ?? '—'));
@@ -1471,7 +1517,7 @@ function openPlekSheet(plekId) {
   );
 
   const eenheidSelect = maak('select', { name: 'eenheid' });
-  for (const eenheid of state.eenheden) {
+  for (const eenheid of eenhedenVan(state, sc.id)) {
     const optie = maak('option', { value: eenheid.id }, [eenheid.naam]);
     if (eenheid.id === plek.eenheidId) optie.setAttribute('selected', '');
     eenheidSelect.append(optie);
@@ -1577,14 +1623,15 @@ let sheetEenheidId = null;
 function eenheidToevoegen() {
   const id = nieuwId('e');
   const state = huidigeState();
+  const sc = scenario(state);
+  const bovenste = eenhedenVan(state, sc.id).find((e) => !e.parentId)?.id ?? null;
+
+  // Een nieuw team hoort bij dit scenario: "wat als we hier een team voor
+  // optuigen" is precies het soort vraag dat je naast elkaar wilt leggen.
   muteer('Team toegevoegd', (s) => {
-    s.eenheden.push({
-      id,
-      naam: '',
-      soort: 'core',
-      // Onder de bovenste eenheid hangen, zodat het team in de hark past.
-      parentId: state.eenheden.find((e) => !e.parentId)?.id ?? null,
-    });
+    const doel = s.scenarios.find((x) => x.id === s.actiefScenario);
+    doel.extraEenheden = doel.extraEenheden ?? [];
+    doel.extraEenheden.push({ id, naam: '', soort: 'core', parentId: bovenste });
   });
   openEenheidSheet(id);
 }
@@ -1597,7 +1644,9 @@ function eenheidToevoegen() {
 function openEenheidSheet(eenheidId) {
   sheetEenheidId = eenheidId;
   const state = huidigeState();
-  const eenheid = state.eenheden.find((e) => e.id === eenheidId);
+  const scOpen = scenario(state);
+  const eenheden = eenhedenVan(state, scOpen.id);
+  const eenheid = eenheden.find((e) => e.id === eenheidId);
   if (!eenheid) return;
 
   const houder = leeg(el('eenheid-sheet-inhoud'));
@@ -1632,10 +1681,10 @@ function openEenheidSheet(eenheidId) {
 
   // Een team kan niet onder zichzelf hangen, en ook niet onder zijn eigen
   // nakomelingen: dat maakt een lus in de hark.
-  const verboden = nakomelingen(state.eenheden, eenheid.id);
+  const verboden = nakomelingen(eenheden, eenheid.id);
   const ouder = maak('select', { name: 'parent' });
   ouder.append(maak('option', { value: '' }, ['(bovenaan)']));
-  for (const kandidaat of state.eenheden) {
+  for (const kandidaat of eenheden) {
     if (kandidaat.id === eenheid.id || verboden.has(kandidaat.id)) continue;
     const optie = maak('option', { value: kandidaat.id }, [kandidaat.naam || '(naamloos)']);
     if (kandidaat.id === eenheid.parentId) optie.setAttribute('selected', '');
@@ -1660,7 +1709,7 @@ function openEenheidSheet(eenheidId) {
   // Zeggen wat verwijderen kost voordat iemand erop drukt.
   const sc = scenario(state);
   const raakt = plekkenVan(state, sc.id).filter((p) => p.eenheidId === eenheid.id).length;
-  const kinderen = state.eenheden.filter((e) => e.parentId === eenheid.id).length;
+  const kinderen = eenheden.filter((e) => e.parentId === eenheid.id).length;
   if (raakt || kinderen) {
     const delen = [];
     if (raakt) delen.push(`${raakt} ${raakt === 1 ? 'plek verdwijnt' : 'plekken verdwijnen'} mee`);
@@ -1706,34 +1755,73 @@ function bewaarEenheid() {
   const parentId = lees('parent') || null;
 
   muteer(`Team ${naam} gewijzigd`, (s) => {
-    const eenheid = s.eenheden.find((e) => e.id === sheetEenheidId);
-    if (eenheid) Object.assign(eenheid, { naam, soort, parentId });
+    const sc = s.scenarios.find((x) => x.id === s.actiefScenario);
+    const patch = { naam, soort, parentId };
+
+    const extra = (sc.extraEenheden ?? []).find((e) => e.id === sheetEenheidId);
+    if (extra) {
+      Object.assign(extra, patch);
+      return;
+    }
+    // Een basisteam wijzigen: scenario-eigen kopie, net als bij plekken, zodat
+    // het andere scenario zijn eigen versie houdt.
+    const basis = s.eenheden.find((e) => e.id === sheetEenheidId);
+    if (basis) {
+      sc.verwijderdeEenheden = sc.verwijderdeEenheden ?? [];
+      if (!sc.verwijderdeEenheden.includes(sheetEenheidId)) {
+        sc.verwijderdeEenheden.push(sheetEenheidId);
+      }
+      sc.extraEenheden = sc.extraEenheden ?? [];
+      sc.extraEenheden.push({ ...basis, ...patch });
+    }
   });
 
   el('eenheid-sheet').hide();
 }
 
 function verwijderEenheid(eenheidId) {
-  muteer('Team verwijderd', (s) => {
-    const eenheid = s.eenheden.find((e) => e.id === eenheidId);
-    const nieuweOuder = eenheid?.parentId ?? null;
+  const state = huidigeState();
+  const sc = scenario(state);
+  const eenheid = eenhedenVan(state, sc.id).find((e) => e.id === eenheidId);
+  const nieuweOuder = eenheid?.parentId ?? null;
 
-    s.eenheden = s.eenheden.filter((e) => e.id !== eenheidId);
-    // Onderliggende teams schuiven een laag omhoog in plaats van te verdwijnen.
-    for (const kind of s.eenheden) {
-      if (kind.parentId === eenheidId) kind.parentId = nieuweOuder;
+  muteer('Team verwijderd', (s) => {
+    const doel = s.scenarios.find((x) => x.id === s.actiefScenario);
+    doel.extraEenheden = (doel.extraEenheden ?? []).filter((e) => e.id !== eenheidId);
+    if (s.eenheden.some((e) => e.id === eenheidId)) {
+      doel.verwijderdeEenheden = doel.verwijderdeEenheden ?? [];
+      if (!doel.verwijderdeEenheden.includes(eenheidId)) {
+        doel.verwijderdeEenheden.push(eenheidId);
+      }
     }
 
-    // Plekken van dit team verdwijnen uit elk scenario, inclusief hun
+    // Onderliggende teams schuiven een laag omhoog in plaats van te verdwijnen.
+    for (const kind of doel.extraEenheden) {
+      if (kind.parentId === eenheidId) kind.parentId = nieuweOuder;
+    }
+    for (const kind of s.eenheden) {
+      if (kind.parentId !== eenheidId) continue;
+      // Een basisteam dat onder het verwijderde team hing krijgt in dit
+      // scenario een eigen versie met de nieuwe ouder.
+      if (!doel.verwijderdeEenheden.includes(kind.id)) doel.verwijderdeEenheden.push(kind.id);
+      doel.extraEenheden.push({ ...kind, parentId: nieuweOuder });
+    }
+
+    // Plekken van dit team verdwijnen uit dít scenario, inclusief hun
     // toewijzingen, anders blijven mensen aan een spookplek hangen.
-    const weg = new Set(s.plekken.filter((p) => p.eenheidId === eenheidId).map((p) => p.id));
-    s.plekken = s.plekken.filter((p) => p.eenheidId !== eenheidId);
-    for (const sc of s.scenarios) {
-      for (const plek of sc.extraPlekken ?? []) {
-        if (plek.eenheidId === eenheidId) weg.add(plek.id);
+    const weg = new Set(
+      s.plekken.filter((p) => p.eenheidId === eenheidId).map((p) => p.id)
+    );
+    for (const plek of doel.extraPlekken ?? []) {
+      if (plek.eenheidId === eenheidId) weg.add(plek.id);
+    }
+    doel.extraPlekken = (doel.extraPlekken ?? []).filter((p) => p.eenheidId !== eenheidId);
+    doel.verwijderdePlekken = doel.verwijderdePlekken ?? [];
+    for (const plekId of weg) {
+      delete doel.toewijzingen[plekId];
+      if (s.plekken.some((p) => p.id === plekId) && !doel.verwijderdePlekken.includes(plekId)) {
+        doel.verwijderdePlekken.push(plekId);
       }
-      sc.extraPlekken = (sc.extraPlekken ?? []).filter((p) => p.eenheidId !== eenheidId);
-      for (const plekId of weg) delete sc.toewijzingen[plekId];
     }
   });
   el('eenheid-sheet').hide();
@@ -2053,6 +2141,8 @@ function maakScenario() {
       gekopieerdVan: bron?.naam ?? null,
       toewijzingen: bron ? { ...bron.toewijzingen } : {},
       extraPlekken: bron ? structuredClone(bron.extraPlekken ?? []) : [],
+      extraEenheden: bron ? structuredClone(bron.extraEenheden ?? []) : [],
+      verwijderdeEenheden: bron ? [...(bron.verwijderdeEenheden ?? [])] : [],
       // Leeg beginnen betekent: alle basisplekken weg, je bouwt zelf op.
       verwijderdePlekken: bron
         ? [...(bron.verwijderdePlekken ?? [])]
