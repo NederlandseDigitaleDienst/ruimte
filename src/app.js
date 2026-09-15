@@ -328,14 +328,7 @@ function plekRij(plek, perPlek, persoonById) {
     wieCel.append(maak('nldd-text', { size: 'sm' }, [persoon.naam]));
     maakSleepbaar(wieCel, persoon);
     if (match && match.score < 70) {
-      wieCel.append(
-        maak('nldd-tag', {
-          color: 'donkergeel',
-          size: 'sm',
-          text: 'let op',
-          'accessible-label': formatRedenen(match.redenen),
-        })
-      );
+      wieCel.append(letOpTag(match));
     }
   } else {
     // Een vacature is een uitnodiging, geen mededeling: hier kies je iemand.
@@ -778,16 +771,7 @@ function persoonItem(persoon, plek, eenheid) {
   }
 
   if (match && match.score < 70) {
-    item.append(
-      maak('nldd-cell', { width: 'fit-content' }, [
-        maak('nldd-tag', {
-          color: 'donkergeel',
-          size: 'sm',
-          text: 'let op',
-          'accessible-label': formatRedenen(match.redenen),
-        }),
-      ])
-    );
+    item.append(maak('nldd-cell', { width: 'fit-content' }, [letOpTag(match)]));
   }
 
   item.append(
@@ -808,6 +792,22 @@ function persoonItem(persoon, plek, eenheid) {
   );
 
   return item;
+}
+
+/**
+ * De "let op"-tag met de reden in een tooltip, zodat je bij hoveren al ziet
+ * waar het om gaat zonder de rij aan te klikken.
+ */
+function letOpTag(match) {
+  const reden = formatRedenen(match.redenen);
+  return maak('nldd-tooltip', { text: reden, placement: 'top' }, [
+    maak('nldd-tag', {
+      color: 'donkergeel',
+      size: 'sm',
+      text: 'let op',
+      'accessible-label': reden,
+    }),
+  ]);
 }
 
 /** Alleen herkomst die afwijkt van "gewoon in dienst" verdient een tag. */
@@ -990,6 +990,21 @@ function toonInspector() {
     container.append(kenmerk('Beschikbaar', `${formatFte(persoon.fte ?? 1)} fte`));
     container.append(kenmerk('Herkomst', HERKOMST_LABEL[persoon.herkomst] ?? 'Bestaand'));
     container.append(kenmerk('Staat op', plek ? plek.rol : 'nog geen plek'));
+
+    // Waarom er "let op" bij deze persoon staat. Zonder dit is die tag een
+    // waarschuwing zonder uitleg.
+    const eigenMatch = plek ? matchKwaliteit(persoon, plek) : null;
+    if (eigenMatch?.redenen.length) {
+      container.append(
+        maak('nldd-inline-dialog', {
+          variant: 'alert',
+          size: 'md',
+          text: 'Let op bij deze plaatsing',
+          'supporting-text': formatRedenen(eigenMatch.redenen),
+        })
+      );
+    }
+
     container.append(
       maak('nldd-button', {
         variant: 'secondary',
