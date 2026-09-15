@@ -31,7 +31,13 @@ import {
   formatOpsomming,
   EENHEID_SOORT,
 } from './model.js';
-import { FUNCTIEGROEPEN, functiegroep, functiegroepenPerFamilie, FUNCTIEFAMILIES } from './fgr.js';
+import {
+  FUNCTIEGROEPEN,
+  functiegroep,
+  functiegroepenPerFamilie,
+  FUNCTIEFAMILIES,
+  bekendeRollen,
+} from './fgr.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -432,13 +438,10 @@ function plekRij(plek, perPlek, persoonById) {
   // valt niets te pakken.
   const wieCel = maak('nldd-cell', { width: 'full' });
   if (persoon) {
-    wieCel.append(maak('nldd-text', { size: 'sm' }, [persoon.naam]));
-    maakSleepbaar(wieCel, persoon);
-    if (match && match.score < 70) {
-      wieCel.append(letOpTag(match));
-    }
-    // Iemand er weer af halen moet hier kunnen, niet alleen via de inspector.
-    wieCel.append(
+    // Naam, markering en kruisje op één regel: de cel zelf stapelt verticaal.
+    const regel = maak('div', { class: 'wierij' }, [
+      maak('nldd-text', { size: 'sm' }, [persoon.naam]),
+      match && match.score < 70 ? letOpTag(match) : null,
       maak('nldd-tooltip', { text: `${persoon.naam} van deze plek halen`, placement: 'top' }, [
         maak('nldd-icon-button', {
           icon: 'close',
@@ -452,8 +455,10 @@ function plekRij(plek, perPlek, persoonById) {
             },
           },
         }),
-      ])
-    );
+      ]),
+    ]);
+    wieCel.append(regel);
+    maakSleepbaar(wieCel, persoon);
   } else {
     // Een vacature is een uitnodiging, geen mededeling: hier kies je iemand.
     wieCel.append(vacatureKnop(plek));
@@ -1149,7 +1154,13 @@ function toonInspector() {
     container.append(kenmerk('Schaal', String(plek.schaal ?? '—')));
     container.append(kenmerk('Fte', formatFte(plek.fte ?? 0)));
     container.append(kenmerk('Integrale kosten', formatEuro(integraleKosten(plek.schaal, plek.fte ?? 1))));
-    container.append(kenmerk('Wie', persoon?.naam ?? 'vacant'));
+    // Doorklikken naar de persoon, zodat je vanuit een waarschuwing meteen
+    // zijn expertise of schaal kunt aanpassen.
+    container.append(
+      persoon
+        ? kenmerk('Wie', persoon.naam, () => gaNaarPersoon(persoon.id))
+        : kenmerk('Wie', 'vacant')
+    );
 
     if (persoon) {
       const match = matchKwaliteit(persoon, plek);
@@ -1160,7 +1171,15 @@ function toonInspector() {
             size: 'md',
             text: 'Let op bij deze match',
             'supporting-text': formatRedenen(match.redenen),
-          })
+          }, [
+            maak('nldd-button', {
+              slot: 'actions',
+              variant: 'secondary',
+              size: 'sm',
+              text: `${persoon.naam} bewerken`,
+              on: { click: () => openPersoonSheet(persoon.id) },
+            }),
+          ])
         );
       }
       container.append(
@@ -1196,7 +1215,15 @@ function toonInspector() {
     container.append(kenmerk('Huidige schaal', String(persoon.schaal ?? '—')));
     container.append(kenmerk('Beschikbaar', `${formatFte(persoon.fte ?? 1)} fte`));
     container.append(kenmerk('Herkomst', herkomstVan(persoon).label));
-    container.append(kenmerk('Staat op', plek ? plek.rol : 'nog geen plek'));
+    container.append(
+      plek
+        ? kenmerk('Staat op', plek.rol, () => {
+            actieveView = 'formatie';
+            kiesPlek(plek.id);
+            toonAlles();
+          })
+        : kenmerk('Staat op', 'nog geen plek')
+    );
 
     // Waarom er "let op" bij deze persoon staat. Zonder dit is die tag een
     // waarschuwing zonder uitleg.
@@ -1350,11 +1377,21 @@ function toonInspector() {
   houder.append(container);
 }
 
-function kenmerk(label, waarde) {
+/** `bijKlik` maakt de waarde een link, bijvoorbeeld naar de persoon erachter. */
+function kenmerk(label, waarde, bijKlik = null) {
   return maak('div', { class: 'kenmerk' }, [
     maak('nldd-text', { size: 'sm', color: 'secondary' }, [label]),
-    maak('nldd-text', { size: 'sm' }, [waarde]),
+    bijKlik
+      ? maak('nldd-link', { text: waarde, on: { click: bijKlik } })
+      : maak('nldd-text', { size: 'sm' }, [waarde]),
   ]);
+}
+
+/** Spring naar een persoon in de mensenlijst en licht hem daar uit. */
+function gaNaarPersoon(persoonId) {
+  selectie = { soort: 'persoon', id: persoonId };
+  actieveView = 'mensen';
+  toonAlles();
 }
 
 // ---------------------------------------------------------------- plek bewerken
@@ -1375,9 +1412,25 @@ function openPlekSheet(plekId) {
 
   const form = maak('nldd-form', { id: 'plek-form' });
 
+  // De rol is wat iemand doet, de functiegroep waarop hij gewaardeerd wordt.
+  // Een programmamanager kan de rol product owner vervullen; dat verandert
+  // rechtspositioneel niets, dus het zijn twee velden.
+  const rolMenu = maak('nldd-menu', {});
+  for (const rol of bekendeRollen(plekkenVan(state, sc.id))) {
+    rolMenu.append(maak('nldd-menu-item', { type: 'button', text: rol, value: rol }));
+  }
   form.append(
-    maak('nldd-form-field', { label: 'Rol' }, [
-      maak('nldd-text-field', { name: 'rol', value: plek.rol ?? '' }),
+    maak('nldd-form-field', {
+      label: 'Rol',
+      'supporting-label': 'Wat deze plek doet. Kies uit de lijst of typ iets nieuws.',
+    }, [
+      maak('nldd-combo-box', {
+        name: 'rol',
+        value: plek.rol ?? '',
+        text: plek.rol ?? '',
+        'allow-custom': true,
+        'accessible-label': 'Rol',
+      }, [rolMenu]),
     ])
   );
 
@@ -1393,7 +1446,10 @@ function openPlekSheet(plekId) {
     select.append(groep);
   }
   form.append(
-    maak('nldd-form-field', { label: 'Functiegroep' }, [maak('nldd-dropdown', {}, [select])])
+    maak('nldd-form-field', {
+      label: 'Functiegroep',
+      'supporting-label': 'Uit het Functiegebouw Rijk. Bepaalt het schaalbereik.',
+    }, [maak('nldd-dropdown', {}, [select])])
   );
 
   form.append(
@@ -1462,7 +1518,10 @@ function openPlekSheet(plekId) {
 function bewaarPlek() {
   const form = el('plek-form');
   const lees = (naam) => form.querySelector(`[name="${naam}"]`)?.value ?? '';
-  const rol = lees('rol').trim() || 'Naamloze plek';
+  // Bij een vrij getypte rol loopt de zichtbare tekst voor op `value`, dus
+  // neem wat er staat als dat afwijkt.
+  const rolVeld = form.querySelector('[name="rol"]');
+  const rol = (rolVeld?.text || rolVeld?.value || '').trim() || 'Naamloze plek';
   const fg = lees('functiegroep');
   const schaal = Number(lees('schaal')) || null;
   const fte = Number(lees('fte')) || 0;

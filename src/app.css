@@ -132,6 +132,26 @@ nldd-navigation-split-view {
   border-radius: var(--primitives-corner-radius-200, 8px);
 }
 
+/* Naam, markering en het kruisje naast elkaar in de Wie-kolom. */
+.wierij {
+  display: flex;
+  align-items: center;
+  gap: var(--primitives-space-6);
+  min-inline-size: 0;
+}
+
+/* De naam mag inkorten, het kruisje nooit. */
+.wierij > nldd-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wierij > nldd-tooltip {
+  margin-inline-start: auto;
+  flex: none;
+}
+
 /* Een naam die je kunt oppakken. Geen pointer: dat is voor links. */
 .sleepbaar {
   cursor: grab;

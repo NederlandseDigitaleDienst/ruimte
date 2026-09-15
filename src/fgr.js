@@ -49,6 +49,42 @@ export const FUNCTIEGROEPEN = [
   { id: 'strategisch-beleidsmedewerker', naam: 'Strategisch Beleidsmedewerker', familie: 'beleid', min: 15, max: 16 },
 ];
 
+/**
+ * Rollen zijn iets anders dan functiegroepen. De functiegroep bepaalt waarop
+ * iemand gewaardeerd en betaald wordt en komt uit het Functiegebouw Rijk; de
+ * rol is wat iemand feitelijk doet in het team. Een programmamanager kan de
+ * rol product owner vervullen zonder dat er rechtspositioneel iets verandert.
+ *
+ * Daarom is dit een startlijst en geen gesloten set: je vult hem aan met wat
+ * in jouw organisatie gangbaar is.
+ */
+export const STANDAARD_ROLLEN = [
+  'Product owner',
+  'Productmanager',
+  'Teamlead',
+  'Tech lead',
+  'Engineer',
+  'Senior engineer',
+  'Data engineer',
+  'Data scientist',
+  'Security engineer',
+  'Ontwerper',
+  'Onderzoeker',
+  'Scrum master',
+  'Architect',
+  'Beleidsadviseur',
+  'Controller',
+  'Officemanager',
+];
+
+/** De rollen die in gebruik zijn, plus de standaardlijst, zonder dubbelingen. */
+export function bekendeRollen(plekken = []) {
+  const inGebruik = plekken.map((p) => p.rol).filter(Boolean);
+  return [...new Set([...STANDAARD_ROLLEN, ...inGebruik])].sort((a, b) =>
+    a.localeCompare(b, 'nl')
+  );
+}
+
 const perId = new Map(FUNCTIEGROEPEN.map((f) => [f.id, f]));
 
 export function functiegroep(id) {
