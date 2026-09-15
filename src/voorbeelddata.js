@@ -15,8 +15,11 @@
  *    personeel; de hefboom zit in standaarden en vakmanschap, niet in omvang.
  *    Twee lagen: directie en teams, geen tussenlaag.
  *
- * De personen heten naar het NAVO-spelalfabet: onmiskenbaar verzonnen, zodat
- * niemand ze voor een echte collega aanziet. De rollen, functiegroepen en
+ * De personen heten naar pioniers uit de informatica, gekozen bij hun rol:
+ * Lovelace op de directie, Dijkstra als principal engineer, Hopper op
+ * product, Nielsen en Norman op gebruikersonderzoek. Historische figuren,
+ * dus niemand ziet ze voor een collega aan, en in een gesprek wijs je
+ * makkelijker naar "Hopper" dan naar "m-04". De rollen, functiegroepen en
  * schalen zijn wel realistisch, want daar gaat het gesprek over.
  */
 
@@ -84,35 +87,35 @@ export const voorbeeldState = {
   ],
 
   personen: [
-    { id: 'm-01', naam: 'A. Alfa', schaal: 16, fte: 1, expertise: ['leidinggeven', 'beleid'], herkomst: 'bestaand' },
-    { id: 'm-02', naam: 'B. Bravo', schaal: 15, fte: 1, expertise: ['engineering', 'architectuur'], herkomst: 'werving' },
-    { id: 'm-03', naam: 'C. Charlie', schaal: 12, fte: 1, expertise: ['beleid'], herkomst: 'bestaand' },
-    { id: 'm-04', naam: 'D. Delta', schaal: 13, fte: 1, expertise: ['product'], herkomst: 'bestaand' },
-    { id: 'm-05', naam: 'E. Echo', schaal: 11, fte: 1, expertise: ['delivery'], herkomst: 'bestaand' },
-    { id: 'm-06', naam: 'F. Foxtrot', schaal: 12, fte: 1, expertise: ['onderzoek'], herkomst: 'werving' },
-    { id: 'm-07', naam: 'G. Golf', schaal: 12, fte: 1, expertise: ['design'], herkomst: 'bestaand' },
-    { id: 'm-08', naam: 'H. Hotel', schaal: 13, fte: 1, expertise: ['engineering'], herkomst: 'intern' },
-    { id: 'm-09', naam: 'I. India', schaal: 11, fte: 1, expertise: ['engineering'], herkomst: 'bestaand' },
-    { id: 'm-10', naam: 'J. Juliet', schaal: 10, fte: 1, expertise: ['engineering'], herkomst: 'werving' },
-    { id: 'm-11', naam: 'K. Kilo', schaal: 13, fte: 1, expertise: ['product'], herkomst: 'bestaand' },
-    { id: 'm-12', naam: 'L. Lima', schaal: 11, fte: 0.8, expertise: ['delivery'], herkomst: 'bestaand' },
-    { id: 'm-13', naam: 'M. Mike', schaal: 12, fte: 1, expertise: ['onderzoek'], herkomst: 'werving' },
-    { id: 'm-14', naam: 'N. November', schaal: 11, fte: 1, expertise: ['design', 'content'], herkomst: 'bestaand' },
-    { id: 'm-15', naam: 'O. Oscar', schaal: 13, fte: 1, expertise: ['engineering'], herkomst: 'intern' },
-    { id: 'm-16', naam: 'P. Papa', schaal: 11, fte: 1, expertise: ['engineering'], herkomst: 'bestaand' },
-    { id: 'm-17', naam: 'Q. Quebec', schaal: 14, fte: 1, expertise: ['engineering', 'architectuur'], herkomst: 'bestaand' },
-    { id: 'm-18', naam: 'R. Romeo', schaal: 13, fte: 1, expertise: ['architectuur'], herkomst: 'bestaand' },
-    { id: 'm-19', naam: 'S. Sierra', schaal: 13, fte: 1, expertise: ['security', 'architectuur'], herkomst: 'werving' },
-    { id: 'm-20', naam: 'T. Tango', schaal: 12, fte: 0.8, expertise: ['design', 'toegankelijkheid'], herkomst: 'bestaand' },
-    { id: 'm-21', naam: 'U. Uniform', schaal: 11, fte: 1, expertise: ['engineering', 'leidinggeven'], herkomst: 'bestaand' },
-    { id: 'm-22', naam: 'V. Victor', schaal: 13, fte: 1, expertise: ['engineering'], herkomst: 'bestaand' },
-    { id: 'm-23', naam: 'W. Whiskey', schaal: 12, fte: 1, expertise: ['engineering', 'design'], herkomst: 'bestaand' },
-    { id: 'm-24', naam: 'X. Xray', schaal: 12, fte: 1, expertise: ['engineering', 'infrastructuur'], herkomst: 'intern' },
-    { id: 'm-25', naam: 'Y. Yankee', schaal: 12, fte: 1, expertise: ['design'], herkomst: 'bestaand' },
-    { id: 'm-26', naam: 'Z. Zulu', schaal: 11, fte: 0.6, expertise: ['financien'], herkomst: 'bestaand' },
-    { id: 'm-27', naam: 'A. Anton', schaal: 8, fte: 0.8, expertise: [], herkomst: 'bestaand' },
+    { id: 'm-01', naam: 'A. Lovelace', schaal: 16, fte: 1, expertise: ['leidinggeven', 'beleid'], herkomst: 'bestaand' },
+    { id: 'm-02', naam: 'E. Dijkstra', schaal: 15, fte: 1, expertise: ['engineering', 'architectuur'], herkomst: 'werving' },
+    { id: 'm-03', naam: 'J. Licklider', schaal: 12, fte: 1, expertise: ['beleid'], herkomst: 'bestaand' },
+    { id: 'm-04', naam: 'G. Hopper', schaal: 13, fte: 1, expertise: ['product'], herkomst: 'bestaand' },
+    { id: 'm-05', naam: 'M. Hamilton', schaal: 11, fte: 1, expertise: ['delivery'], herkomst: 'bestaand' },
+    { id: 'm-06', naam: 'J. Nielsen', schaal: 12, fte: 1, expertise: ['onderzoek'], herkomst: 'werving' },
+    { id: 'm-07', naam: 'S. Kare', schaal: 12, fte: 1, expertise: ['design'], herkomst: 'bestaand' },
+    { id: 'm-08', naam: 'A. Turing', schaal: 13, fte: 1, expertise: ['engineering'], herkomst: 'intern' },
+    { id: 'm-09', naam: 'K. Antonelli', schaal: 11, fte: 1, expertise: ['engineering'], herkomst: 'bestaand' },
+    { id: 'm-10', naam: 'B. Snyder', schaal: 10, fte: 1, expertise: ['engineering'], herkomst: 'werving' },
+    { id: 'm-11', naam: 'B. Liskov', schaal: 13, fte: 1, expertise: ['product'], herkomst: 'bestaand' },
+    { id: 'm-12', naam: 'F. Allen', schaal: 11, fte: 0.8, expertise: ['delivery'], herkomst: 'bestaand' },
+    { id: 'm-13', naam: 'D. Norman', schaal: 12, fte: 1, expertise: ['onderzoek'], herkomst: 'werving' },
+    { id: 'm-14', naam: 'T. Nelson', schaal: 11, fte: 1, expertise: ['design', 'content'], herkomst: 'bestaand' },
+    { id: 'm-15', naam: 'K. Thompson', schaal: 13, fte: 1, expertise: ['engineering'], herkomst: 'intern' },
+    { id: 'm-16', naam: 'J. Bartik', schaal: 11, fte: 1, expertise: ['engineering'], herkomst: 'bestaand' },
+    { id: 'm-17', naam: 'A. van Wijngaarden', schaal: 14, fte: 1, expertise: ['engineering', 'architectuur'], herkomst: 'bestaand' },
+    { id: 'm-18', naam: 'G. Blaauw', schaal: 13, fte: 1, expertise: ['architectuur'], herkomst: 'bestaand' },
+    { id: 'm-19', naam: 'W. Diffie', schaal: 13, fte: 1, expertise: ['security', 'architectuur'], herkomst: 'werving' },
+    { id: 'm-20', naam: 'V. Bush', schaal: 12, fte: 0.8, expertise: ['design', 'toegankelijkheid'], herkomst: 'bestaand' },
+    { id: 'm-21', naam: 'L. Torvalds', schaal: 11, fte: 1, expertise: ['engineering', 'leidinggeven'], herkomst: 'bestaand' },
+    { id: 'm-22', naam: 'D. Ritchie', schaal: 13, fte: 1, expertise: ['engineering'], herkomst: 'bestaand' },
+    { id: 'm-23', naam: 'H. Lie', schaal: 12, fte: 1, expertise: ['engineering', 'design'], herkomst: 'bestaand' },
+    { id: 'm-24', naam: 'B. Kernighan', schaal: 12, fte: 1, expertise: ['engineering', 'infrastructuur'], herkomst: 'intern' },
+    { id: 'm-25', naam: 'J. Raskin', schaal: 12, fte: 1, expertise: ['design'], herkomst: 'bestaand' },
+    { id: 'm-26', naam: 'C. Babbage', schaal: 11, fte: 0.6, expertise: ['financien'], herkomst: 'bestaand' },
+    { id: 'm-27', naam: 'D. Engelbart', schaal: 8, fte: 0.8, expertise: [], herkomst: 'bestaand' },
     // Nog niet geplaatst: laat de teller meteen zien waar het om gaat.
-    { id: 'm-28', naam: 'B. Bernard', schaal: 12, fte: 1, expertise: ['engineering'], herkomst: 'bestaand' },
+    { id: 'm-28', naam: 'R. Stallman', schaal: 12, fte: 1, expertise: ['engineering'], herkomst: 'bestaand' },
   ],
 
   scenarios: [
