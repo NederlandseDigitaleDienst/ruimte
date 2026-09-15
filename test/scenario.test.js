@@ -15,13 +15,15 @@ const verse = () => structuredClone(voorbeeldState);
 
 test('scenario deelt de personenpool met de basis', () => {
   const s = verse();
-  assert.equal(s.personen.length, 20);
+  assert.ok(s.personen.length > 0);
   // Er is maar één personenlijst, op de top-level state.
   assert.ok(!('personen' in s.scenarios[0]));
 });
 
 test('een plek toevoegen raakt alleen het eigen scenario', () => {
   const s = verse();
+  const voor1 = plekkenVan(s, 's-1').length;
+  const voor2 = plekkenVan(s, 's-2').length;
   s.scenarios[0].extraPlekken.push({
     id: 'p-nieuw',
     rol: 'Test',
@@ -30,52 +32,59 @@ test('een plek toevoegen raakt alleen het eigen scenario', () => {
     eenheidId: 'e-platform',
     expertise: [],
   });
-  assert.equal(plekkenVan(s, 's-1').length, 20);
-  assert.equal(plekkenVan(s, 's-2').length, 19);
+  assert.equal(plekkenVan(s, 's-1').length, voor1 + 1, 'scenario 1 krijgt er een plek bij');
+  assert.equal(plekkenVan(s, 's-2').length, voor2, 'scenario 2 blijft gelijk');
 });
 
 test('een basisplek bewerken maakt een scenario-eigen kopie', () => {
   const s = verse();
   const sc = s.scenarios[0];
-  const basis = s.plekken.find((p) => p.id === 'p-13');
+  // Een plek die in beide scenario's bestaat.
+  const basis = s.plekken.find(
+    (p) => !s.scenarios.some((x) => (x.verwijderdePlekken ?? []).includes(p.id))
+  );
+  const oudeRol = basis.rol;
 
   // Wat bewaarPlek() doet.
-  sc.verwijderdePlekken.push('p-13');
+  sc.verwijderdePlekken.push(basis.id);
   sc.extraPlekken.push({ ...basis, rol: 'Gewijzigd' });
 
-  const hier = plekkenVan(s, 's-1').filter((p) => p.id === 'p-13');
-  const daar = plekkenVan(s, 's-2').filter((p) => p.id === 'p-13');
+  const hier = plekkenVan(s, 's-1').filter((p) => p.id === basis.id);
+  const daar = plekkenVan(s, 's-2').filter((p) => p.id === basis.id);
 
   // Precies één versie zichtbaar, niet twee: de filter geldt alleen voor
   // de basisplekken, extraPlekken worden er ongefilterd achter geplakt.
   assert.equal(hier.length, 1, 'kopie vervangt het origineel, geen duplicaat');
   assert.equal(hier[0].rol, 'Gewijzigd');
-  assert.equal(daar[0].rol, 'Engineer', 'het andere scenario blijft ongemoeid');
+  assert.equal(daar[0].rol, oudeRol, 'het andere scenario blijft ongemoeid');
 });
 
 test('de toewijzing blijft kloppen na copy-on-write', () => {
   const s = verse();
   const sc = s.scenarios[0];
-  const basis = s.plekken.find((p) => p.id === 'p-13');
-  const voor = sc.toewijzingen['p-13'];
+  const basis = s.plekken.find((p) => sc.toewijzingen[p.id]);
+  const voor = sc.toewijzingen[basis.id];
 
-  sc.verwijderdePlekken.push('p-13');
+  sc.verwijderdePlekken.push(basis.id);
   sc.extraPlekken.push({ ...basis, rol: 'Gewijzigd' });
 
   const { perPlek } = toewijzingIndex(sc, plekkenVan(s, 's-1'));
-  assert.equal(perPlek.get('p-13'), voor);
+  assert.equal(perPlek.get(basis.id), voor);
 });
 
 test('een toewijzing naar een verdwenen plek laat niemand verdwijnen', () => {
   const s = verse();
+  const sc = s.scenarios[0];
   // Plek weg, toewijzing blijft staan: kan uit een import komen.
-  s.scenarios[0].verwijderdePlekken.push('p-13');
+  const bezet = s.plekken.find((p) => sc.toewijzingen[p.id]);
+  const wie = s.personen.find((p) => p.id === sc.toewijzingen[bezet.id]).naam;
+  sc.verwijderdePlekken.push(bezet.id);
 
   const resultaat = toets(s, 's-1');
   const namen = resultaat.bevindingen[0].personen.map(
     (id) => s.personen.find((p) => p.id === id).naam
   );
-  assert.ok(namen.includes('F. Foxtrot'), 'wie zijn plek kwijt is, staat zonder plek');
+  assert.ok(namen.includes(wie), 'wie zijn plek kwijt is, staat zonder plek');
 });
 
 test('normen gelden voor alle scenarios', () => {
@@ -86,33 +95,36 @@ test('normen gelden voor alle scenarios', () => {
 
 test('een team toevoegen raakt alleen het eigen scenario', () => {
   const s = verse();
+  const voor1 = eenhedenVan(s, 's-1').length;
+  const voor2 = eenhedenVan(s, 's-2').length;
   s.scenarios[0].extraEenheden = [
-    { id: 'e-nieuw', naam: 'Doorbraak: toezicht', soort: 'doorbraak', parentId: 'e-mt' },
+    { id: 'e-nieuw', naam: 'Doorbraak: toezicht', soort: 'doorbraak', parentId: s.eenheden[0].id },
   ];
-  assert.equal(eenhedenVan(s, 's-1').length, 7);
-  assert.equal(eenhedenVan(s, 's-2').length, 6, 'het andere scenario ziet het team niet');
+  assert.equal(eenhedenVan(s, 's-1').length, voor1 + 1);
+  assert.equal(eenhedenVan(s, 's-2').length, voor2, 'het andere scenario ziet het team niet');
 });
 
 test('een basisteam bewerken maakt een scenario-eigen kopie', () => {
   const s = verse();
   const sc = s.scenarios[0];
-  const basis = s.eenheden.find((e) => e.id === 'e-platform');
-  sc.verwijderdeEenheden = ['e-platform'];
-  sc.extraEenheden = [{ ...basis, naam: 'Platform en infra' }];
+  const basis = s.eenheden.find((e) => e.parentId);
+  const oudeNaam = basis.naam;
+  sc.verwijderdeEenheden = [basis.id];
+  sc.extraEenheden = [{ ...basis, naam: 'Hernoemd team' }];
 
-  const hier = eenhedenVan(s, 's-1').filter((e) => e.id === 'e-platform');
-  const daar = eenhedenVan(s, 's-2').filter((e) => e.id === 'e-platform');
+  const hier = eenhedenVan(s, 's-1').filter((e) => e.id === basis.id);
+  const daar = eenhedenVan(s, 's-2').filter((e) => e.id === basis.id);
   assert.equal(hier.length, 1, 'geen duplicaat');
-  assert.equal(hier[0].naam, 'Platform en infra');
-  assert.equal(daar[0].naam, 'Platform');
+  assert.equal(hier[0].naam, 'Hernoemd team');
+  assert.equal(daar[0].naam, oudeNaam);
 });
 
 test('de soort van een scenario-eigen team telt mee in de toets', () => {
   const s = verse();
   const sc = s.scenarios[0];
-  // Maak Platform een doorbraakproject, alleen in scenario 1.
-  const basis = s.eenheden.find((e) => e.id === 'e-platform');
-  sc.verwijderdeEenheden = ['e-platform'];
+  // Maak een kernteam tot doorbraakproject, alleen in scenario 1.
+  const basis = s.eenheden.find((e) => e.soort === 'core');
+  sc.verwijderdeEenheden = [basis.id];
   sc.extraEenheden = [{ ...basis, soort: 'doorbraak' }];
 
   const hier = toets(s, 's-1').bevindingen.find((b) => b.id === 'core-doorbraak');

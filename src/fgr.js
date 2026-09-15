@@ -1,49 +1,73 @@
 /**
  * Functiegebouw Rijk: functiefamilies, functiegroepen en hun schaalbereik.
  *
- * Het FGR verving ruim 30.000 losse functiebeschrijvingen door een kleine
- * set functieprofielen. Eén profiel geldt voor meerdere schalen; de
- * functietypering bepaalt welk schaalniveau van toepassing is, gewaardeerd
- * met Fuwasys.
+ * Alle namen en schaalbereiken zijn overgenomen van de familiepagina's op
+ * functiegebouwrijksoverheid.nl. Verzin hier niets bij: een functiegroep die
+ * niet bestaat maakt het formatierapport onbruikbaar.
  *
- * Deze lijst is een werkbare selectie voor een digitale dienst, niet het
- * volledige gebouw. Vul aan waar een traject dat vraagt.
+ * Het belangrijkste om te weten: het FGR kent GEEN functiegroep voor
+ * software-ontwikkelaar, designer, architect of user researcher. Het is
+ * bewust generiek. ICT is een *aandachtsgebied* binnen de generieke groepen,
+ * geen eigen groep. Daarom heeft een plek in deze tool een vrije rol (wat
+ * iemand doet) naast een functiegroep (waarop iemand gewaardeerd wordt).
+ *
+ * Het KWIV (Kwaliteitsraamwerk Informatievoorziening) beschrijft wél de
+ * IV-rollen, maar bepaalt uitdrukkelijk niet de schaal: "een KWIV-profiel
+ * heeft geen gevolgen voor de rechtspositie, schaalindeling of het salaris."
+ * KWIV beschrijft de rol, FGR bepaalt de schaal.
+ *
+ * Laatst geverifieerd: september 2026. Let op: O&P Rijk past de functiegroepen
+ * aan op FUWA-Rijk, dus schaalbereiken kunnen wijzigen.
  */
 
 export const FUNCTIEFAMILIES = {
-  lijnmanagement: 'Lijnmanagement',
   advisering: 'Advisering',
   uitvoering: 'Uitvoering',
   projectmanagement: 'Project- en programmamanagement',
+  lijnmanagement: 'Lijnmanagement',
   kennis: 'Kennis en onderzoek',
   bedrijfsvoering: 'Bedrijfsvoering',
   beleid: 'Beleid',
-  toezicht: 'Toezicht',
 };
 
 /**
- * min en max zijn het schaalbereik waarbinnen de functiegroep gewaardeerd
- * kan worden. Een plek buiten dat bereik is niet per se fout, maar vraagt
- * onderbouwing in het formatierapport, dus de tool waarschuwt erop.
+ * min en max zijn het schaalbereik waarbinnen de functiegroep gewaardeerd kan
+ * worden. Een plek daarbuiten is niet verboden, maar vraagt onderbouwing in
+ * het formatierapport, dus de toets geeft een signaal.
  */
 export const FUNCTIEGROEPEN = [
+  // Advisering: waar de meeste inhoudelijke digitale rollen landen.
+  { id: 'medewerker-advisering', naam: 'Medewerker Advisering', familie: 'advisering', min: 8, max: 11 },
+  { id: 'senior-adviseur', naam: '(Senior) Adviseur', familie: 'advisering', min: 11, max: 13 },
+  { id: 'cooerdinerend-adviseur', naam: 'Coördinerend / Specialistisch Adviseur', familie: 'advisering', min: 13, max: 15 },
+  { id: 'strategisch-adviseur', naam: 'Strategisch Adviseur', familie: 'advisering', min: 15, max: 16 },
+
+  // Uitvoering: de twee IV-groepen zijn de ICT-specifieke ingangen.
+  { id: 'senior-medewerker-iv', naam: 'Senior Medewerker IV', familie: 'uitvoering', min: 8, max: 11 },
+  { id: 'expert-iv', naam: 'Expert IV', familie: 'uitvoering', min: 11, max: 13 },
+  { id: 'medewerker-verwerken', naam: 'Medewerker Verwerken en Behandelen', familie: 'uitvoering', min: 3, max: 8 },
+
+  // Project- en programmamanagement.
+  { id: 'projectleider', naam: 'Projectleider', familie: 'projectmanagement', min: 9, max: 11 },
+  { id: 'programmamanager', naam: 'Project-/Programmamanager', familie: 'projectmanagement', min: 12, max: 15 },
+  { id: 'programmadirecteur', naam: 'Project-/Programmadirecteur', familie: 'projectmanagement', min: 16, max: 17 },
+
+  // Lijnmanagement.
   { id: 'operationeel-manager', naam: 'Operationeel Manager', familie: 'lijnmanagement', min: 7, max: 11 },
   { id: 'manager', naam: 'Manager', familie: 'lijnmanagement', min: 12, max: 15 },
   { id: 'topmanager', naam: 'Topmanager', familie: 'lijnmanagement', min: 16, max: 18 },
+  { id: 'topmanager-generaal', naam: 'Topmanager-generaal', familie: 'lijnmanagement', min: 19, max: 19 },
 
-  { id: 'adviseur-ict', naam: 'Adviseur ICT', familie: 'advisering', min: 10, max: 14 },
-  { id: 'adviseur-bedrijfsvoering', naam: 'Adviseur Bedrijfsvoering', familie: 'advisering', min: 9, max: 14 },
-  { id: 'adviseur-communicatie', naam: 'Adviseur Communicatie', familie: 'advisering', min: 9, max: 14 },
+  // Kennis en onderzoek: waar zwaar user research kan landen.
+  { id: 'onderzoeksmedewerker', naam: 'Onderzoeksmedewerker', familie: 'kennis', min: 8, max: 11 },
+  { id: 'wetenschappelijk-medewerker', naam: 'Wetenschappelijk Medewerker', familie: 'kennis', min: 10, max: 13 },
+  { id: 'senior-wetenschappelijk-medewerker', naam: 'Senior Wetenschappelijk Medewerker', familie: 'kennis', min: 13, max: 15 },
 
-  { id: 'medewerker-ict', naam: 'Medewerker ICT', familie: 'uitvoering', min: 6, max: 11 },
-  { id: 'medewerker-verwerken', naam: 'Medewerker Verwerken en Behandelen', familie: 'uitvoering', min: 3, max: 8 },
-  { id: 'medewerker-bedrijfsvoering', naam: 'Medewerker Bedrijfsvoering', familie: 'bedrijfsvoering', min: 4, max: 11 },
+  // Bedrijfsvoering: ondersteunend, niet engineering.
+  { id: 'adviseur-bedrijfsvoering', naam: 'Adviseur Bedrijfsvoering', familie: 'bedrijfsvoering', min: 8, max: 11 },
+  { id: 'medewerker-ict-div', naam: 'Medewerker ICT/Techniek/Informatiebeheer/DIV', familie: 'bedrijfsvoering', min: 5, max: 8 },
 
-  { id: 'projectleider', naam: 'Projectleider', familie: 'projectmanagement', min: 10, max: 14 },
-  { id: 'programmamanager', naam: 'Programmamanager', familie: 'projectmanagement', min: 13, max: 16 },
-
-  { id: 'onderzoeker', naam: 'Onderzoeker', familie: 'kennis', min: 10, max: 15 },
-
+  // Beleid.
   { id: 'beleidsmedewerker', naam: '(Senior) Beleidsmedewerker', familie: 'beleid', min: 11, max: 13 },
   { id: 'cooerdinerend-beleidsmedewerker', naam: 'Coördinerend Beleidsmedewerker', familie: 'beleid', min: 13, max: 15 },
   { id: 'strategisch-beleidsmedewerker', naam: 'Strategisch Beleidsmedewerker', familie: 'beleid', min: 15, max: 16 },
@@ -51,31 +75,80 @@ export const FUNCTIEGROEPEN = [
 
 /**
  * Rollen zijn iets anders dan functiegroepen. De functiegroep bepaalt waarop
- * iemand gewaardeerd en betaald wordt en komt uit het Functiegebouw Rijk; de
- * rol is wat iemand feitelijk doet in het team. Een programmamanager kan de
- * rol product owner vervullen zonder dat er rechtspositioneel iets verandert.
+ * iemand gewaardeerd en betaald wordt; de rol is wat iemand feitelijk doet.
+ * Een project-/programmamanager kan de rol product manager vervullen zonder
+ * dat er rechtspositioneel iets verandert.
  *
- * Daarom is dit een startlijst en geen gesloten set: je vult hem aan met wat
- * in jouw organisatie gangbaar is.
+ * Deze lijst volgt het Government Digital and Data Profession Capability
+ * Framework (voorheen DDaT), het raamwerk waarmee GDS werkt: 45 rollen in
+ * acht families. Hieronder staan de rollen die een digitale dienst in de
+ * praktijk nodig heeft, in Nederlandse termen.
+ *
+ * `groep` is een beredeneerd voorstel voor de FGR-functiegroep. Het FGR
+ * publiceert geen mapping voor moderne digitale rollen, dus dit is geen
+ * officiële indeling: de onderbouwing blijft werk voor het formatierapport.
+ *
+ * `spoor` legt het dubbele carrièrepad vast dat GDS hanteert voor software
+ * developer en DevOps engineer: vanaf senior splitst elke trede in een
+ * technische en een leidinggevende variant, op dezelfde schaal. Het
+ * coalitieakkoord vraagt hetzelfde met "gelijke waardering voor specialisten
+ * als voor managers", dus de tool maakt dat zichtbaar.
  */
-export const STANDAARD_ROLLEN = [
-  'Product owner',
-  'Productmanager',
-  'Teamlead',
-  'Tech lead',
-  'Engineer',
-  'Senior engineer',
-  'Data engineer',
-  'Data scientist',
-  'Security engineer',
-  'Ontwerper',
-  'Onderzoeker',
-  'Scrum master',
-  'Architect',
-  'Beleidsadviseur',
-  'Controller',
-  'Officemanager',
+export const ROLLEN = [
+  // Product en delivery
+  { naam: 'Product manager', groep: 'programmamanager', familie: 'Product en delivery' },
+  { naam: 'Delivery manager', groep: 'projectleider', familie: 'Product en delivery' },
+  { naam: 'Service owner', groep: 'cooerdinerend-adviseur', familie: 'Product en delivery' },
+  { naam: 'Business analist', groep: 'senior-adviseur', familie: 'Product en delivery' },
+
+  // Software: het dubbele spoor. Senior, lead en principal bestaan twee keer,
+  // technisch en leidinggevend, op hetzelfde niveau.
+  { naam: 'Engineer', groep: 'senior-medewerker-iv', familie: 'Software' },
+  { naam: 'Senior engineer', groep: 'expert-iv', familie: 'Software', spoor: 'technisch' },
+  { naam: 'Engineering manager', groep: 'operationeel-manager', familie: 'Software', spoor: 'leidinggevend' },
+  { naam: 'Lead engineer', groep: 'cooerdinerend-adviseur', familie: 'Software', spoor: 'technisch' },
+  { naam: 'Principal engineer', groep: 'strategisch-adviseur', familie: 'Software', spoor: 'technisch' },
+  { naam: 'Frontend engineer', groep: 'expert-iv', familie: 'Software' },
+  { naam: 'DevOps engineer', groep: 'expert-iv', familie: 'Software' },
+
+  // Gebruikersgericht ontwerp: de rollen die een maakorganisatie onderscheiden
+  // van een klassieke ICT-afdeling.
+  { naam: 'User researcher', groep: 'wetenschappelijk-medewerker', familie: 'Gebruikersgericht ontwerp' },
+  { naam: 'Interactieontwerper', groep: 'senior-adviseur', familie: 'Gebruikersgericht ontwerp' },
+  { naam: 'Serviceontwerper', groep: 'senior-adviseur', familie: 'Gebruikersgericht ontwerp' },
+  { naam: 'Contentontwerper', groep: 'senior-adviseur', familie: 'Gebruikersgericht ontwerp' },
+  { naam: 'Toegankelijkheidsspecialist', groep: 'senior-adviseur', familie: 'Gebruikersgericht ontwerp' },
+
+  // Data
+  { naam: 'Data engineer', groep: 'expert-iv', familie: 'Data' },
+  { naam: 'Data scientist', groep: 'senior-adviseur', familie: 'Data' },
+  { naam: 'Performance analist', groep: 'senior-adviseur', familie: 'Data' },
+
+  // Architectuur en techniek
+  { naam: 'Technisch architect', groep: 'cooerdinerend-adviseur', familie: 'Architectuur' },
+  { naam: 'Security architect', groep: 'cooerdinerend-adviseur', familie: 'Architectuur' },
+  { naam: 'Security engineer', groep: 'expert-iv', familie: 'Architectuur' },
+
+  // Beheer en operatie
+  { naam: 'Infrastructure engineer', groep: 'expert-iv', familie: 'Beheer en operatie' },
+  { naam: 'Servicemanager', groep: 'senior-adviseur', familie: 'Beheer en operatie' },
+
+  // Leiding en ondersteuning
+  { naam: 'Directeur', groep: 'topmanager', familie: 'Leiding' },
+  { naam: 'Teamlead', groep: 'operationeel-manager', familie: 'Leiding' },
+  { naam: 'Beleidsadviseur', groep: 'beleidsmedewerker', familie: 'Leiding' },
+  { naam: 'Controller', groep: 'adviseur-bedrijfsvoering', familie: 'Leiding' },
+  { naam: 'Officemanager', groep: 'medewerker-ict-div', familie: 'Leiding' },
 ];
+
+export const ROL_SUGGESTIES = Object.fromEntries(ROLLEN.map((r) => [r.naam, r.groep]));
+
+export const STANDAARD_ROLLEN = ROLLEN.map((r) => r.naam);
+
+/** De rol met zijn familie en spoor, als die bekend is. */
+export function rolInfo(naam) {
+  return ROLLEN.find((r) => r.naam === naam) ?? null;
+}
 
 /** De rollen die in gebruik zijn, plus de standaardlijst, zonder dubbelingen. */
 export function bekendeRollen(plekken = []) {
@@ -104,4 +177,9 @@ export function functiegroepenPerFamilie() {
     gegroepeerd.get(groep.familie).push(groep);
   }
   return gegroepeerd;
+}
+
+/** De functiegroep die bij een rol past, als die er is. */
+export function suggestieVoorRol(rol) {
+  return ROL_SUGGESTIES[rol] ?? null;
 }
