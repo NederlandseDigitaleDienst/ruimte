@@ -1,5 +1,5 @@
 /**
- * Formatieplaat: de plaat die je op tafel legt en waarin je tijdens het
+ * Ruimte: de plaat die je op tafel legt en waarin je tijdens het
  * gesprek kunt schuiven.
  *
  * Opzet: geen framework. Bij elke mutatie wordt de betreffende view opnieuw
@@ -9,16 +9,27 @@
 
 import { voorbeeldState } from './voorbeelddata.js';
 import {
-  laad,
   huidigeState,
   abonneer,
   muteer,
   undo,
   kanUndo,
-  exporteer,
   vervangState,
   nieuwId,
+  opslagModus,
+  ontgrendel,
+  zetWachtwoord,
+  vergrendel,
+  spoel,
+  opslagBezig,
+  bijOpslagfout,
+  exporteerVersleuteld,
+  leesImport,
 } from './state.js';
+import { beschikbaar } from './krypto.js';
+import { vraagWachtwoord, vraagNieuwWachtwoord, vraagBestandsWachtwoord } from './slot.js';
+import { startAutoLock, stopAutoLock } from './autolock.js';
+import { el, maak, leeg } from './dom.js';
 import {
   toets,
   plekkenVan,
@@ -41,8 +52,6 @@ import {
   schaalPastBijFunctiegroep,
 } from './fgr.js';
 
-const el = (id) => document.getElementById(id);
-
 /** Wat de inspector rechts laat zien. */
 let selectie = null; // { soort: 'plek'|'persoon'|'bevinding', id }
 let actieveView = 'formatie';
@@ -51,30 +60,6 @@ let actieveView = 'formatie';
 
 function scenario(state = huidigeState()) {
   return state.scenarios.find((s) => s.id === state.actiefScenario) ?? state.scenarios[0];
-}
-
-function maak(tag, attrs = {}, kinderen = []) {
-  const node = document.createElement(tag);
-  for (const [sleutel, waarde] of Object.entries(attrs)) {
-    if (waarde === false || waarde == null) continue;
-    if (sleutel === 'on') {
-      for (const [gebeurtenis, fn] of Object.entries(waarde)) node.addEventListener(gebeurtenis, fn);
-    } else if (waarde === true) {
-      node.setAttribute(sleutel, '');
-    } else {
-      node.setAttribute(sleutel, String(waarde));
-    }
-  }
-  for (const kind of [].concat(kinderen)) {
-    if (kind == null) continue;
-    node.append(typeof kind === 'string' ? document.createTextNode(kind) : kind);
-  }
-  return node;
-}
-
-function leeg(node) {
-  while (node.firstChild) node.removeChild(node.firstChild);
-  return node;
 }
 
 const STATUS_KLEUR = { ok: 'groen', waarschuwing: 'donkergeel', fout: 'rood' };
@@ -2252,7 +2237,7 @@ function verwijderScenario(scenarioId) {
  */
 function leegMaken() {
   muteer('Plaat leeggemaakt', (s) => {
-    s.naam = 'Formatieplaat';
+    s.naam = 'Ruimte';
     s.personen = [];
     s.plekken = [];
     s.eenheden = [{ id: nieuwId('e'), naam: 'Nieuw team', soort: 'core', parentId: null }];
@@ -2276,31 +2261,46 @@ function leegMaken() {
   meldTijdelijk('success', 'De plaat is leeg. Begin met een team en voeg daar plekken aan toe.');
 }
 
-function exporteerBestand() {
-  const blob = new Blob([exporteer()], { type: 'application/json' });
+/**
+ * Exporteren met een eigen wachtwoord, niet dat van de sessie: het bestand
+ * gaat naar iemand anders en hoort zijn eigen geheim te hebben.
+ */
+async function exporteerBestand() {
+  const wachtwoord = await vraagBestandsWachtwoord({ nieuw: true });
+  if (!wachtwoord) return;
+
+  const inhoud = await exporteerVersleuteld(wachtwoord);
+  const blob = new Blob([inhoud], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'formatieplaat.json';
+  link.download = 'ruimte.json';
   link.click();
   URL.revokeObjectURL(url);
+  meldTijdelijk('success', 'Bestand opgeslagen. Deel het wachtwoord apart.', 6000);
 }
 
-function importeerBestand(bestand) {
-  const lezer = new FileReader();
-  lezer.onload = () => {
-    try {
-      // vervangState normaliseert en gooit als het geen formatieplaat is.
-      vervangState(JSON.parse(String(lezer.result)), 'Bestand geïmporteerd');
-    } catch {
-      meldTijdelijk(
-        'alert',
-        'Dit bestand kon niet worden gelezen. Verwacht is een eerder geëxporteerde formatieplaat.',
-        6000
-      );
+async function importeerBestand(bestand) {
+  try {
+    const gelezen = await leesImport(await bestand.text(), () =>
+      vraagBestandsWachtwoord({ nieuw: false })
+    );
+    if (!gelezen) return; // afgebroken bij de wachtwoordvraag
+
+    // vervangState normaliseert en gooit als het geen plaat is.
+    vervangState(gelezen.state, 'Bestand geïmporteerd');
+    if (!gelezen.wasVersleuteld) {
+      meldTijdelijk('alert', 'Let op: dit bestand was niet beveiligd.', 6000);
     }
-  };
-  lezer.readAsText(bestand);
+  } catch (fout) {
+    meldTijdelijk(
+      'alert',
+      fout?.name === 'WachtwoordFout'
+        ? 'Het wachtwoord van dit bestand klopt niet.'
+        : 'Dit bestand kon niet worden gelezen. Verwacht is een eerder geëxporteerde plaat.',
+      6000
+    );
+  }
 }
 
 /** Een melding die vanzelf weer verdwijnt. */
@@ -2348,10 +2348,58 @@ function toonAlles() {
 
 // ---------------------------------------------------------------- opstarten
 
-laad(voorbeeldState);
-abonneer(() => toonAlles());
+/**
+ * De plaat gaat pas open na een wachtwoord. Wat erin staat (wie waar komt, en
+ * vooral wie nog nergens staat) hoort niet leesbaar in een browser te liggen.
+ */
+async function start() {
+  if (!beschikbaar()) {
+    const laag = el('slot');
+    laag.hidden = false;
+    laag.textContent =
+      'Versleuteling werkt alleen via https of localhost. Open deze pagina via de juiste URL.';
+    return;
+  }
+
+  bijOpslagfout((fout) =>
+    meldTijdelijk('alert', `Opslaan lukte niet: ${fout?.message ?? 'onbekende fout'}`, 8000)
+  );
+
+  const modus = opslagModus();
+  if (modus === 'versleuteld') {
+    await vraagWachtwoord((w) => ontgrendel(w, voorbeeldState));
+  } else {
+    await vraagNieuwWachtwoord((w) => zetWachtwoord(w, voorbeeldState), {
+      migratie: modus === 'plat',
+    });
+  }
+
+  abonneer(() => toonAlles());
+  toonAlles();
+  startSlotTimer();
+}
+
+function startSlotTimer() {
+  startAutoLock({ bij: () => vergrendelNu() });
+}
+
+async function vergrendelNu() {
+  stopAutoLock();
+  await vergrendel();
+  selectie = null;
+  leeg(el('view'));
+  leeg(el('inspector'));
+  for (const sheet of document.querySelectorAll('nldd-sheet')) sheet.hide?.();
+  el('titelbalk').setAttribute('text', 'Ruimte');
+  el('titelbalk').setAttribute('supporting-text', 'Vergrendeld');
+
+  await vraagWachtwoord((w) => ontgrendel(w, voorbeeldState));
+  toonAlles();
+  startSlotTimer();
+}
 
 el('scenario-toevoegen').addEventListener('click', scenarioToevoegen);
+el('vergrendel').addEventListener('click', () => vergrendelNu());
 
 el('undo').addEventListener('click', () => {
   const beschrijving = undo();
@@ -2380,4 +2428,12 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-toonAlles();
+start();
+
+// Vangnet bij het sluiten van het tabblad: eerst wegschrijven.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') spoel();
+});
+window.addEventListener('beforeunload', (e) => {
+  if (opslagBezig()) e.preventDefault();
+});

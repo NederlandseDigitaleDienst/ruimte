@@ -157,7 +157,7 @@ test('normaliseer geeft een plek zonder team een eigen kopje', () => {
   assert.equal(s.plekken[0].eenheidId, 'e-overig');
 });
 
-test('normaliseer weigert wat geen formatieplaat is', () => {
+test('normaliseer weigert wat geen plaat is', () => {
   assert.equal(normaliseer(null), null);
   assert.equal(normaliseer({ iets: 'anders' }), null);
   assert.equal(normaliseer({ personen: [], scenarios: [] }), null);

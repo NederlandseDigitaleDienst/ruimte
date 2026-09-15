@@ -1,4 +1,4 @@
-# Formatieplaat
+# Ruimte
 
 Een werkinstrument voor het samenstellen van een formatie: hoeveel plekken zijn
 er, wie zet je erop, en klopt het geheel nog. Bedoeld om open te hebben tijdens
@@ -74,17 +74,36 @@ onderbouwing in het formatierapport, dus de toets geeft een signaal.
 Let op: de HOT 2026 is opgesteld voordat de CAO Rijk 2026 met 2,7% er lag, dus
 de bedragen zijn aan de conservatieve kant.
 
+## Wachtwoord
+
+De plaat staat versleuteld in je browser. Bij het openen kies of geef je een
+wachtwoord; na een kwartier niets doen gaat hij vanzelf weer op slot.
+
+**Er is geen herstel.** Raak je het wachtwoord kwijt, dan is de plaat niet meer
+te openen, ook niet door ons. Exporteer regelmatig als je dat risico niet wilt
+lopen; een exportbestand krijgt zijn eigen wachtwoord, dat je het beste via een
+ander kanaal deelt dan het bestand zelf.
+
+Wat dit wel doet: iemand die je laptop of je browseropslag inziet, leest niets.
+Wat dit niet doet: het beschermt niet tegen iemand die meekijkt terwijl de
+plaat open staat, en het beantwoordt geen enkele vraag over grondslag,
+bewaartermijn of wie verwerkingsverantwoordelijke is. Die vragen komen zodra er
+echte namen in gaan.
+
 ## Gebruik
 
 ```sh
-python3 -m http.server 8731
+uv run --no-project python serve.py
 ```
 
 Open http://127.0.0.1:8731. Er is geen build nodig; het design system komt van
-de CDN.
+de CDN. Versleuteling vereist https of localhost, dus openen via `file://`
+werkt niet.
 
-Het werk wordt in de browser bewaard. Met Exporteren haal je een JSON-bestand
-op dat je kunt delen of in een andere browser inladen.
+Het werk wordt versleuteld in de browser bewaard. Met Exporteren haal je een
+bestand op dat je kunt delen of in een andere browser inladen.
+
+Tests: `node --test test/*.js`
 
 ## Eigen gegevens
 
@@ -106,6 +125,18 @@ rechtspositionele vragen die niet in een score passen.
 
 ## Techniek
 
-Web components uit `@nldd/design-system` 0.8.88, geen framework. De code zit in
-vier bestanden: `model.js` (berekeningen en toets), `state.js` (opslag en
-undo), `fgr.js` (functiegebouw) en `app.js` (weergave en interactie).
+Web components uit `@nldd/design-system` 0.8.88, geen framework, geen build.
+
+| Bestand | Wat |
+|---|---|
+| `model.js` | Berekeningen en de toets |
+| `fgr.js` | Functiegebouw Rijk en de rollen |
+| `state.js` | Opslag, undo en het slot |
+| `krypto.js` | Versleuteling (AES-GCM, Web Crypto) |
+| `slot.js` | Het wachtwoordscherm |
+| `autolock.js` | Vanzelf op slot na een kwartier |
+| `app.js` | Weergave en interactie |
+
+De opslag is versleuteld met een sleutel uit je wachtwoord. Het wachtwoord
+zelf wordt nergens bewaard, ook niet in het geheugen: alleen de afgeleide
+sleutel, en die is niet uitleesbaar vanuit JavaScript.

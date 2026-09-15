@@ -3,12 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Formatieplaat</title>
+<title>Ruimte</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@nldd/design-system@0.8.88/dist/css/global.css">
 <script src="https://cdn.jsdelivr.net/npm/@nldd/design-system@0.8.88/dist/nldd.min.js"></script>
 <link rel="stylesheet" href="src/app.css">
 </head>
 <body>
+
+<!-- Het wachtwoordscherm. Ondoorzichtig, want achter een doorschijnende laag
+     zijn de namen op de plaat nog te lezen. -->
+<div id="slot" class="slot" hidden></div>
 
 <nldd-app-view>
   <nldd-navigation-split-view
@@ -81,6 +85,10 @@
             <nldd-toolbar-item slot="end">
               <nldd-button id="leegmaken" variant="neutral-tinted" size="sm"
                            start-icon="delete" text="Leeg beginnen"></nldd-button>
+            </nldd-toolbar-item>
+            <nldd-toolbar-item slot="end">
+              <nldd-button id="vergrendel" variant="neutral-tinted" size="sm"
+                           start-icon="lock" text="Op slot"></nldd-button>
             </nldd-toolbar-item>
           </nldd-toolbar>
         </nldd-top-title-bar>

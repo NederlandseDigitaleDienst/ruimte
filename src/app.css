@@ -228,3 +228,26 @@ body.sleept .sleepbaar {
   gap: var(--primitives-space-6);
   flex-wrap: wrap;
 }
+
+/* --- Wachtwoordscherm --- */
+
+/* Volledig ondoorzichtig: door een doorschijnende laag zijn de namen op de
+   plaat nog te lezen, en dat is precies wat het slot moet voorkomen. */
+.slot {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: auto;
+  background: light-dark(
+    var(--primitives-color-neutral-25),
+    var(--primitives-color-neutral-900)
+  );
+}
+
+/* Het formulier staat gecentreerd, niet bovenaan geplakt. */
+.slot nldd-simple-section {
+  min-block-size: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
