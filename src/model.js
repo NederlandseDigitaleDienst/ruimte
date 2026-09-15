@@ -291,6 +291,17 @@ export function formatFte(fte) {
   return new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 1 }).format(fte);
 }
 
+/** "a", "a en b", "a, b en c" */
+export function formatOpsomming(items) {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} en ${items[items.length - 1]}`;
+}
+
+/** De redenen als lopende tekst, elke zin met een punt erachter. */
+export function formatRedenen(redenen) {
+  return (redenen ?? []).map((r) => (r.endsWith('.') ? r : `${r}.`)).join(' ');
+}
+
 /**
  * Hoe goed past deze persoon op deze plek? Gebruikt om bij het slepen te laten
  * zien of een match logisch is, niet om iets te blokkeren.
@@ -300,14 +311,24 @@ export function matchKwaliteit(persoon, plek) {
   const redenen = [];
   let score = 100;
 
+  // De naam erbij, anders is "de huidige schaal" dubbelzinnig: dat kan ook
+  // de schaal van de plek zijn.
+  const wie = persoon.naam ?? 'Deze persoon';
+
   if (persoon.schaal != null && plek.schaal != null) {
     const verschil = persoon.schaal - plek.schaal;
     if (verschil > 0) {
       score -= 40;
-      redenen.push(`Zit nu in schaal ${persoon.schaal}, de plek is schaal ${plek.schaal}`);
+      redenen.push(
+        `${wie} zit in schaal ${persoon.schaal}, deze plek is schaal ${plek.schaal}`
+      );
     } else if (verschil <= -2) {
       score -= 25;
-      redenen.push(`Plek is ${Math.abs(verschil)} schalen zwaarder dan de huidige schaal`);
+      const aantal = Math.abs(verschil);
+      redenen.push(
+        `Deze plek is ${aantal} ${aantal === 1 ? 'schaal' : 'schalen'} zwaarder dan ` +
+          `de schaal van ${wie} (${persoon.schaal} tegenover ${plek.schaal})`
+      );
     }
   }
 
@@ -316,7 +337,11 @@ export function matchKwaliteit(persoon, plek) {
   const ontbreekt = vereist.filter((e) => !heeft.has(e));
   if (vereist.length > 0) {
     score -= (ontbreekt.length / vereist.length) * 35;
-    if (ontbreekt.length > 0) redenen.push(`Mist ${ontbreekt.join(', ')}`);
+    if (ontbreekt.length > 0) {
+      redenen.push(
+        `${wie} heeft geen ${formatOpsomming(ontbreekt)} in het profiel`
+      );
+    }
   }
 
   return { score: Math.max(0, Math.round(score)), redenen };

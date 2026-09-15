@@ -27,6 +27,7 @@ import {
   matchKwaliteit,
   formatEuro,
   formatFte,
+  formatRedenen,
   EENHEID_SOORT,
 } from './model.js';
 import { FUNCTIEGROEPEN, functiegroep, functiegroepenPerFamilie, FUNCTIEFAMILIES } from './fgr.js';
@@ -71,6 +72,58 @@ const STATUS_KLEUR = { ok: 'groen', waarschuwing: 'donkergeel', fout: 'rood' };
 const STATUS_ICOON = { ok: 'check', waarschuwing: 'warning', fout: 'warning' };
 
 // ---------------------------------------------------------------- linkerkolom
+
+const VIEWS = [
+  { id: 'formatie', naam: 'Formatie', uitleg: 'Teams, plekken en wie erop staat' },
+  { id: 'organogram', naam: 'Organogram', uitleg: 'De hark met de bezetting' },
+  { id: 'mensen', naam: 'Mensen', uitleg: 'Wie er zijn en wie nog nergens staat' },
+  { id: 'vergelijk', naam: 'Vergelijk', uitleg: "Scenario's naast elkaar" },
+];
+
+function toonViews() {
+  const lijst = leeg(el('view-lijst'));
+  const state = huidigeState();
+  const resultaat = toets(state, state.actiefScenario);
+
+  for (const view of VIEWS) {
+    const item = maak(
+      'nldd-list-item',
+      {
+        size: 'md',
+        button: true,
+        current: view.id === actieveView,
+        selected: view.id === actieveView,
+        on: {
+          click: () => {
+            if (view.id === actieveView) return;
+            actieveView = view.id;
+            toonViews();
+            toonView();
+          },
+        },
+      },
+      [
+        maak('nldd-title-cell', {
+          text: view.naam,
+          'supporting-text': view.uitleg,
+          size: 6,
+        }),
+        // Het aantal mensen zonder plek hoort naast "Mensen": daar los je het op.
+        view.id === 'mensen' && resultaat.samenvatting.aantalZonderPlek > 0
+          ? maak('nldd-cell', { width: 'fit-content' }, [
+              maak('nldd-tag', {
+                color: 'rood',
+                size: 'sm',
+                text: String(resultaat.samenvatting.aantalZonderPlek),
+                'accessible-label': `${resultaat.samenvatting.aantalZonderPlek} mensen zonder plek`,
+              }),
+            ])
+          : null,
+      ]
+    );
+    lijst.append(item);
+  }
+}
 
 function toonScenarios() {
   const state = huidigeState();
@@ -280,7 +333,7 @@ function plekRij(plek, perPlek, persoonById) {
           color: 'donkergeel',
           size: 'sm',
           text: 'let op',
-          'accessible-label': match.redenen.join('. '),
+          'accessible-label': formatRedenen(match.redenen),
         })
       );
     }
@@ -412,7 +465,7 @@ function kandidaatItem(persoon, match, plek, popover, huidigePlek) {
           text: String(match.score),
           'accessible-label':
             `Match ${match.score} van 100` +
-            (match.redenen.length ? `. ${match.redenen.join('. ')}` : ''),
+            (match.redenen.length ? ` ${formatRedenen(match.redenen)}` : ''),
         }),
       ]),
     ]
@@ -675,6 +728,17 @@ function toonMensen() {
   metBlok.append(metLijst);
   container.append(metBlok);
 
+  // Mensen erbij hoort hier: dit is de lijst waar je "wie hebben we" leest.
+  container.append(
+    maak('nldd-button', {
+      variant: 'secondary',
+      size: 'sm',
+      'start-icon': 'plus',
+      text: 'Persoon erbij',
+      on: { click: () => persoonToevoegen() },
+    })
+  );
+
   houder.append(container);
 }
 
@@ -704,10 +768,11 @@ function persoonItem(persoon, plek, eenheid) {
   maakSleepbaar(titel, persoon);
   item.append(titel);
 
-  if (persoon.herkomst === 'werving') {
+  const herkomstTag = HERKOMST[persoon.herkomst];
+  if (herkomstTag) {
     item.append(
       maak('nldd-cell', { width: 'fit-content' }, [
-        maak('nldd-tag', { color: 'hemelblauw', size: 'sm', text: 'te werven' }),
+        maak('nldd-tag', { color: herkomstTag.color, size: 'sm', text: herkomstTag.label }),
       ])
     );
   }
@@ -719,14 +784,45 @@ function persoonItem(persoon, plek, eenheid) {
           color: 'donkergeel',
           size: 'sm',
           text: 'let op',
-          'accessible-label': match.redenen.join('. '),
+          'accessible-label': formatRedenen(match.redenen),
         }),
       ])
     );
   }
 
+  item.append(
+    maak('nldd-cell', { width: 'fit-content' }, [
+      maak('nldd-icon-button', {
+        icon: 'pencil',
+        size: 'sm',
+        variant: 'neutral-transparent',
+        'accessible-label': `${persoon.naam || 'Persoon'} bewerken`,
+        on: {
+          click: (e) => {
+            e.stopPropagation();
+            openPersoonSheet(persoon.id);
+          },
+        },
+      }),
+    ])
+  );
+
   return item;
 }
+
+/** Alleen herkomst die afwijkt van "gewoon in dienst" verdient een tag. */
+const HERKOMST = {
+  werving: { label: 'te werven', color: 'hemelblauw' },
+  detachering: { label: 'detachering', color: 'paars' },
+  inhuur: { label: 'inhuur', color: 'oranje' },
+};
+
+const HERKOMST_LABEL = {
+  bestaand: 'Bestaand',
+  werving: 'Nog te werven',
+  detachering: 'Detachering',
+  inhuur: 'Inhuur',
+};
 
 // ---------------------------------------------------------------- vergelijken
 
@@ -856,7 +952,7 @@ function toonInspector() {
             variant: 'alert',
             size: 'md',
             text: 'Let op bij deze match',
-            'supporting-text': match.redenen.join('. '),
+            'supporting-text': formatRedenen(match.redenen),
           })
         );
       }
@@ -892,10 +988,16 @@ function toonInspector() {
     container.append(maak('nldd-title', { size: '5' }, [maak('h2', {}, [persoon.naam])]));
     container.append(kenmerk('Huidige schaal', String(persoon.schaal ?? '—')));
     container.append(kenmerk('Beschikbaar', `${formatFte(persoon.fte ?? 1)} fte`));
-    container.append(
-      kenmerk('Herkomst', persoon.herkomst === 'werving' ? 'Nog te werven' : 'Bestaand')
-    );
+    container.append(kenmerk('Herkomst', HERKOMST_LABEL[persoon.herkomst] ?? 'Bestaand'));
     container.append(kenmerk('Staat op', plek ? plek.rol : 'nog geen plek'));
+    container.append(
+      maak('nldd-button', {
+        variant: 'secondary',
+        size: 'sm',
+        text: 'Persoon bewerken',
+        on: { click: () => openPersoonSheet(persoon.id) },
+      })
+    );
 
     if ((persoon.expertise ?? []).length) {
       container.append(
@@ -942,7 +1044,7 @@ function toonInspector() {
                   color: match.score >= 85 ? 'groen' : match.score >= 70 ? 'donkergeel' : 'neutral',
                   size: 'sm',
                   text: `${match.score}`,
-                  'accessible-label': `Match ${match.score} van 100. ${match.redenen.join('. ')}`,
+                  'accessible-label': `Match ${match.score} van 100. ${formatRedenen(match.redenen)}`,
                 }),
               ]),
             ]
@@ -984,7 +1086,6 @@ function toonInspector() {
               click: () => {
                 selectie = { soort: 'persoon', id: persoon.id };
                 actieveView = 'mensen';
-                el('view-keuze').setAttribute('value', 'mensen');
                 toonAlles();
               },
             },
@@ -1189,6 +1290,174 @@ function verwijderPlek(plekId) {
   el('plek-sheet').hide();
 }
 
+// ---------------------------------------------------------------- mensen beheren
+
+let sheetPersoonId = null;
+
+function persoonToevoegen() {
+  const id = nieuwId('m');
+  muteer('Persoon toegevoegd', (s) => {
+    s.personen.push({
+      id,
+      naam: '',
+      schaal: 12,
+      fte: 1,
+      expertise: [],
+      herkomst: 'bestaand',
+    });
+  });
+  openPersoonSheet(id);
+}
+
+/**
+ * Mensen horen bij de hele plaat, niet bij één scenario: een persoon die je
+ * toevoegt telt in elk scenario mee. Anders klopt "vergeet ik niemand" niet.
+ */
+function openPersoonSheet(persoonId) {
+  sheetPersoonId = persoonId;
+  const state = huidigeState();
+  const persoon = state.personen.find((p) => p.id === persoonId);
+  if (!persoon) return;
+
+  const houder = leeg(el('persoon-sheet-inhoud'));
+  const container = maak('nldd-container', { padding: '24', layout: 'stack', gap: '16' });
+
+  container.append(
+    maak('nldd-title', { size: '4' }, [
+      maak('h2', {}, [persoon.naam ? 'Persoon bewerken' : 'Nieuwe persoon']),
+    ])
+  );
+
+  const form = maak('nldd-form', { id: 'persoon-form' });
+
+  form.append(
+    maak('nldd-form-field', { label: 'Naam' }, [
+      maak('nldd-text-field', { name: 'naam', value: persoon.naam ?? '' }),
+    ])
+  );
+
+  form.append(
+    maak('nldd-form-field', { label: 'Huidige schaal' }, [
+      maak('nldd-number-field', {
+        name: 'schaal',
+        value: String(persoon.schaal ?? 12),
+        min: '1',
+        max: '18',
+      }),
+    ])
+  );
+
+  form.append(
+    maak('nldd-form-field', { label: 'Beschikbare fte' }, [
+      maak('nldd-number-field', {
+        name: 'fte',
+        value: String(persoon.fte ?? 1),
+        min: '0',
+        max: '1',
+        step: '0.1',
+      }),
+    ])
+  );
+
+  const herkomst = maak('select', { name: 'herkomst' });
+  for (const [waarde, label] of [
+    ['bestaand', 'Bestaand'],
+    ['werving', 'Nog te werven'],
+    ['detachering', 'Detachering'],
+    ['inhuur', 'Inhuur'],
+  ]) {
+    const optie = maak('option', { value: waarde }, [label]);
+    if (waarde === (persoon.herkomst ?? 'bestaand')) optie.setAttribute('selected', '');
+    herkomst.append(optie);
+  }
+  form.append(
+    maak('nldd-form-field', { label: 'Herkomst' }, [maak('nldd-dropdown', {}, [herkomst])])
+  );
+
+  form.append(
+    maak('nldd-form-field', {
+      label: 'Expertise',
+      optional: true,
+      'supporting-label': 'Gescheiden door komma’s, bijvoorbeeld: engineering, data',
+    }, [
+      maak('nldd-text-field', {
+        name: 'expertise',
+        value: (persoon.expertise ?? []).join(', '),
+      }),
+    ])
+  );
+
+  container.append(form);
+  container.append(
+    maak('nldd-button', {
+      variant: 'primary',
+      text: 'Opslaan',
+      on: { click: () => bewaarPersoon() },
+    })
+  );
+
+  // Verwijderen op afstand van opslaan, zodat een misklik niet iemand wist.
+  container.append(maak('nldd-spacer', { size: '24' }));
+  container.append(maak('nldd-divider', {}));
+
+  const sc = scenario(state);
+  const { perPersoon } = toewijzingIndex(sc);
+  const staatErgens = perPersoon.has(persoon.id);
+  if (staatErgens) {
+    container.append(
+      maak('nldd-text', { size: 'sm', color: 'secondary' }, [
+        'Deze persoon staat op een plek. Verwijderen haalt hem daar ook af.',
+      ])
+    );
+  }
+  container.append(
+    maak('nldd-button', {
+      variant: 'destructive',
+      size: 'sm',
+      text: 'Persoon verwijderen',
+      on: { click: () => verwijderPersoon(persoon.id) },
+    })
+  );
+
+  houder.append(container);
+  el('persoon-sheet').show();
+}
+
+function bewaarPersoon() {
+  const form = el('persoon-form');
+  const lees = (naam) => form.querySelector(`[name="${naam}"]`)?.value ?? '';
+  const naam = lees('naam').trim() || 'Naamloos';
+  const schaal = Number(lees('schaal')) || null;
+  const fte = Number(lees('fte')) || 0;
+  const herkomst = lees('herkomst');
+  const expertise = lees('expertise')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  muteer(`${naam} gewijzigd`, (s) => {
+    const persoon = s.personen.find((p) => p.id === sheetPersoonId);
+    if (persoon) Object.assign(persoon, { naam, schaal, fte, herkomst, expertise });
+  });
+
+  el('persoon-sheet').hide();
+}
+
+function verwijderPersoon(persoonId) {
+  muteer('Persoon verwijderd', (s) => {
+    s.personen = s.personen.filter((p) => p.id !== persoonId);
+    // Ook uit elk scenario halen, anders blijft er een toewijzing hangen
+    // naar iemand die niet meer bestaat.
+    for (const sc of s.scenarios) {
+      for (const [plekId, pid] of Object.entries(sc.toewijzingen)) {
+        if (pid === persoonId) delete sc.toewijzingen[plekId];
+      }
+    }
+  });
+  if (selectie?.soort === 'persoon' && selectie.id === persoonId) selectie = null;
+  el('persoon-sheet').hide();
+}
+
 // ---------------------------------------------------------------- scenario's
 
 function scenarioToevoegen() {
@@ -1269,22 +1538,17 @@ function toonTitel() {
 
 function toonAlles() {
   toonTitel();
+  toonViews();
   toonScenarios();
   toonToets();
   toonView();
   toonInspector();
-  el('undo').toggleAttribute('disabled', false);
 }
 
 // ---------------------------------------------------------------- opstarten
 
 laad(voorbeeldState);
 abonneer(() => toonAlles());
-
-el('view-keuze').addEventListener('change', (e) => {
-  actieveView = e.detail?.value ?? 'formatie';
-  toonView();
-});
 
 el('scenario-toevoegen').addEventListener('click', scenarioToevoegen);
 
