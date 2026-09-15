@@ -12,7 +12,11 @@ nldd-navigation-split-view {
 /* --- Formatieweergave: teams onder elkaar, plekken als tabelrijen --- */
 
 .team {
-  margin-block-end: var(--primitives-space-32);
+  margin-block-end: var(--primitives-space-40);
+}
+
+.team:last-child {
+  margin-block-end: 0;
 }
 
 .team__kop {
@@ -20,7 +24,7 @@ nldd-navigation-split-view {
   align-items: center;
   gap: var(--primitives-space-8);
   flex-wrap: wrap;
-  margin-block-end: var(--primitives-space-8);
+  margin-block-end: var(--primitives-space-12);
 }
 
 /* De cijfers naast een teamnaam: fte, kosten, bezetting. */
@@ -76,9 +80,11 @@ nldd-navigation-split-view {
 
 /* --- Vergelijkweergave: scenario's naast elkaar --- */
 
+/* Naast elkaar is het hele punt van deze weergave, dus de drempel ligt laag.
+   Pas onder de 230px per kolom stapelen de kaarten. */
 .vergelijk {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: var(--primitives-space-16);
 }
 
@@ -118,8 +124,37 @@ nldd-navigation-split-view {
   border-radius: var(--primitives-corner-radius-200, 8px);
 }
 
-[draggable='true'] {
+/* Een naam die je kunt oppakken. Geen pointer: dat is voor links. */
+.sleepbaar {
   cursor: grab;
+  touch-action: none;
+}
+
+body.sleept,
+body.sleept .sleepbaar {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* Het label dat tijdens het slepen aan de muis hangt. */
+.sleepbeeld {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: 9999;
+  pointer-events: none;
+  padding: var(--primitives-space-4) var(--primitives-space-8);
+  border-radius: var(--primitives-corner-radius-200, 8px);
+  font-size: var(--primitives-font-size-90);
+  background: light-dark(
+    var(--primitives-color-neutral-0),
+    var(--primitives-color-neutral-750)
+  );
+  color: light-dark(
+    var(--primitives-color-neutral-900),
+    var(--primitives-color-neutral-25)
+  );
+  box-shadow: var(--primitives-box-shadows-level-3, 0 4px 12px rgb(0 0 0 / 0.25));
 }
 
 /* --- Inspector --- */

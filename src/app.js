@@ -190,20 +190,22 @@ function toonFormatie() {
     ]);
     blok.append(kop);
 
+    // Rol en Wie blijven altijd staan: daar gaat het gesprek over. Bij minder
+    // ruimte vallen eerst de functiegroep, dan de schaal en de fte weg.
     const tabel = maak('nldd-table', {
       'accessible-label': `Formatie ${eenheid.naam}`,
-      columns: 'minmax(200px,1.4fr) 150px 90px 70px minmax(180px,1fr) 44px',
-      'md-columns': 'minmax(180px,1.4fr) 90px 70px minmax(150px,1fr) 44px',
-      'sm-columns': 'minmax(140px,1fr) 70px 44px',
+      columns: 'minmax(180px,1.3fr) 150px 80px 60px minmax(170px,1fr) 44px',
+      'md-columns': 'minmax(150px,1.2fr) 80px 60px minmax(150px,1fr) 44px',
+      'sm-columns': 'minmax(110px,1fr) minmax(110px,1fr) 44px',
     });
 
     const kopRij = maak('nldd-table-row', { slot: 'header' }, [
       maak('nldd-text-cell', { text: 'Rol' }),
       maak('nldd-text-cell', { text: 'Functiegroep', 'hide-below': 'lg' }),
       maak('nldd-text-cell', { text: 'Schaal', 'hide-below': 'md' }),
-      maak('nldd-text-cell', { text: 'Fte' }),
-      maak('nldd-text-cell', { text: 'Wie', 'hide-below': 'md' }),
-      maak('nldd-text-cell', { text: '', 'accessible-label': 'Acties' }),
+      maak('nldd-text-cell', { text: 'Fte', 'hide-below': 'md' }),
+      maak('nldd-text-cell', { text: 'Wie' }),
+      maak('nldd-text-cell', { text: '' }),
     ]);
     tabel.append(kopRij);
 
@@ -224,16 +226,15 @@ function toonFormatie() {
     blok.append(tabel);
 
     // Eén klik, geen formulier: precies wat in een gesprek nodig is.
+    blok.append(maak('nldd-spacer', { size: '12' }));
     blok.append(
-      maak('nldd-container', { padding: '0', 'padding-block-start': '8' }, [
-        maak('nldd-button', {
-          variant: 'secondary',
-          size: 'sm',
-          'start-icon': 'plus',
-          text: 'Plek erbij',
-          on: { click: () => plekToevoegen(eenheid.id) },
-        }),
-      ])
+      maak('nldd-button', {
+        variant: 'secondary',
+        size: 'sm',
+        'start-icon': 'plus',
+        text: 'Plek erbij',
+        on: { click: () => plekToevoegen(eenheid.id) },
+      })
     );
 
     container.append(blok);
@@ -264,18 +265,15 @@ function plekRij(plek, perPlek, persoonById) {
     maak('nldd-text-cell', { text: groep?.naam ?? '—', 'hide-below': 'lg', color: 'secondary' })
   );
   rij.append(maak('nldd-text-cell', { text: String(plek.schaal ?? '—'), 'hide-below': 'md' }));
-  rij.append(maak('nldd-text-cell', { text: formatFte(plek.fte ?? 0) }));
+  rij.append(maak('nldd-text-cell', { text: formatFte(plek.fte ?? 0), 'hide-below': 'md' }));
 
-  // De cel waar je iemand naartoe sleept.
-  const wieCel = maak('nldd-cell', { 'hide-below': 'md', width: 'full' });
+  // De cel waar je iemand naartoe sleept. De cel is zelf het sleepbare
+  // element: een nldd-text eromheen heeft geen eigen afmeting, dus daar
+  // valt niets te pakken.
+  const wieCel = maak('nldd-cell', { width: 'full' });
   if (persoon) {
-    const naam = maak('nldd-text', { size: 'sm' }, [persoon.naam]);
-    naam.setAttribute('draggable', 'true');
-    naam.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/plain', persoon.id);
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    wieCel.append(naam);
+    wieCel.append(maak('nldd-text', { size: 'sm' }, [persoon.naam]));
+    maakSleepbaar(wieCel, persoon);
     if (match && match.score < 70) {
       wieCel.append(
         maak('nldd-tag', {
@@ -287,7 +285,8 @@ function plekRij(plek, perPlek, persoonById) {
       );
     }
   } else {
-    wieCel.append(maak('nldd-text', { size: 'sm', color: 'secondary' }, ['vacant']));
+    // Een vacature is een uitnodiging, geen mededeling: hier kies je iemand.
+    wieCel.append(vacatureKnop(plek));
   }
   maakOntvanger(wieCel, plek.id);
   rij.append(wieCel);
@@ -307,20 +306,198 @@ function plekRij(plek, perPlek, persoonById) {
   return rij;
 }
 
+/**
+ * De knop op een vacante plek, met een popover die de mensen toont die nog
+ * nergens staan, op matchkwaliteit gesorteerd. Zo hoef je niet van weergave
+ * te wisselen om iemand neer te zetten.
+ */
+function vacatureKnop(plek) {
+  const state = huidigeState();
+  const sc = scenario(state);
+  const { perPersoon } = toewijzingIndex(sc);
+
+  const triggerId = `vacature-${plek.id}`;
+  const popoverId = `kies-${plek.id}`;
+
+  // popovertarget komt niet door de shadow-grens van nldd-button heen, dus
+  // de popover wordt hier expliciet geopend.
+  const knop = maak('nldd-button', {
+    id: triggerId,
+    variant: 'neutral-transparent',
+    size: 'sm',
+    text: 'vacant',
+    'start-icon': 'plus',
+    'popup-type': 'dialog',
+    on: {
+      click: (e) => {
+        e.stopPropagation();
+        popover.show?.();
+      },
+    },
+  });
+
+  const popover = maak('nldd-popover', {
+    id: popoverId,
+    anchor: triggerId,
+    width: '320px',
+    'accessible-label': `Kies iemand voor ${plek.rol}`,
+  });
+
+  // Vrije mensen eerst, daarna de rest: iemand weghalen bij een ander team
+  // is een legitieme zet in dit gesprek, maar niet de eerste suggestie.
+  const vrij = state.personen.filter((p) => !perPersoon.has(p.id));
+  const bezet = state.personen.filter((p) => perPersoon.has(p.id));
+  const rangschik = (mensen) =>
+    mensen
+      .map((persoon) => ({ persoon, match: matchKwaliteit(persoon, plek) }))
+      .sort((a, b) => b.match.score - a.match.score);
+
+  const inhoud = maak('nldd-container', { padding: '8', layout: 'stack', gap: '8' });
+
+  if (vrij.length === 0 && bezet.length === 0) {
+    inhoud.append(
+      maak('nldd-inline-dialog', {
+        text: 'Geen mensen beschikbaar',
+        'supporting-text': 'Voeg eerst mensen toe aan de lijst.',
+      })
+    );
+  } else {
+    const lijst = maak('nldd-list', {
+      variant: 'box',
+      type: 'listbox',
+      'accessible-label': 'Beschikbare mensen',
+    });
+
+    for (const { persoon, match } of rangschik(vrij)) {
+      lijst.append(kandidaatItem(persoon, match, plek, popover, null));
+    }
+    for (const { persoon, match } of rangschik(bezet)) {
+      const huidigePlekId = perPersoon.get(persoon.id)[0];
+      const huidige = plekkenVan(state, sc.id).find((p) => p.id === huidigePlekId);
+      lijst.append(kandidaatItem(persoon, match, plek, popover, huidige));
+    }
+    inhoud.append(lijst);
+  }
+
+  popover.append(inhoud);
+  const fragment = document.createDocumentFragment();
+  fragment.append(knop, popover);
+  return fragment;
+}
+
+function kandidaatItem(persoon, match, plek, popover, huidigePlek) {
+  return maak(
+    'nldd-list-item',
+    {
+      size: 'sm',
+      button: true,
+      on: {
+        click: () => {
+          popover.hide?.();
+          wijsToe(plek.id, persoon.id);
+        },
+      },
+    },
+    [
+      maak('nldd-title-cell', {
+        text: persoon.naam,
+        overline: huidigePlek ? `nu op ${huidigePlek.rol}` : null,
+        'supporting-text': `schaal ${persoon.schaal}, ${formatFte(persoon.fte ?? 1)} fte`,
+        size: 6,
+      }),
+      maak('nldd-cell', { width: 'fit-content' }, [
+        maak('nldd-tag', {
+          color: match.score >= 85 ? 'groen' : match.score >= 70 ? 'donkergeel' : 'neutral',
+          size: 'sm',
+          text: String(match.score),
+          'accessible-label':
+            `Match ${match.score} van 100` +
+            (match.redenen.length ? `. ${match.redenen.join('. ')}` : ''),
+        }),
+      ]),
+    ]
+  );
+}
+
+/**
+ * Slepen op pointer events in plaats van HTML5 drag-and-drop.
+ *
+ * HTML5-drag werkt hier slecht: het start niet op elementen zonder eigen
+ * afmeting, laat zich niet aansturen vanuit een web component met shadow DOM,
+ * en doet niets op touch. Pointer events werken overal hetzelfde.
+ */
+let sleep = null; // { persoon, beeld, doelen }
+
+function maakSleepbaar(node, persoon) {
+  node.classList.add('sleepbaar');
+  node.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let begonnen = false;
+
+    const beweeg = (ev) => {
+      // Pas na een paar pixels: anders wordt elke klik een sleep.
+      if (!begonnen) {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 5) return;
+        begonnen = true;
+        startSleep(persoon, ev);
+      }
+      verplaatsSleep(ev);
+    };
+
+    const los = (ev) => {
+      document.removeEventListener('pointermove', beweeg);
+      document.removeEventListener('pointerup', los);
+      if (begonnen) {
+        eindigSleep(ev);
+        // Voorkom dat de klik na het slepen ook nog de rij selecteert.
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+    };
+
+    document.addEventListener('pointermove', beweeg);
+    document.addEventListener('pointerup', los, { once: false });
+  });
+}
+
+function startSleep(persoon, ev) {
+  const beeld = maak('div', { class: 'sleepbeeld' }, [persoon.naam]);
+  document.body.append(beeld);
+  sleep = { persoon, beeld };
+  document.body.classList.add('sleept');
+  verplaatsSleep(ev);
+}
+
+function verplaatsSleep(ev) {
+  if (!sleep) return;
+  sleep.beeld.style.transform = `translate(${ev.clientX + 12}px, ${ev.clientY + 12}px)`;
+
+  const onder = document.elementFromPoint(ev.clientX, ev.clientY);
+  const doel = onder?.closest?.('[data-plek]');
+  for (const n of document.querySelectorAll('.ontvangt')) n.classList.remove('ontvangt');
+  if (doel) doel.classList.add('ontvangt');
+}
+
+function eindigSleep(ev) {
+  if (!sleep) return;
+  const onder = document.elementFromPoint(ev.clientX, ev.clientY);
+  const doel = onder?.closest?.('[data-plek]');
+  const plekId = doel?.getAttribute('data-plek');
+
+  sleep.beeld.remove();
+  document.body.classList.remove('sleept');
+  for (const n of document.querySelectorAll('.ontvangt')) n.classList.remove('ontvangt');
+  const persoon = sleep.persoon;
+  sleep = null;
+
+  if (plekId) wijsToe(plekId, persoon.id);
+}
+
 /** Maak een element een dropdoel voor een persoon. */
 function maakOntvanger(node, plekId) {
-  node.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    node.classList.add('ontvangt');
-  });
-  node.addEventListener('dragleave', () => node.classList.remove('ontvangt'));
-  node.addEventListener('drop', (e) => {
-    e.preventDefault();
-    node.classList.remove('ontvangt');
-    const persoonId = e.dataTransfer.getData('text/plain');
-    if (persoonId) wijsToe(plekId, persoonId);
-  });
+  node.setAttribute('data-plek', plekId);
 }
 
 function wijsToe(plekId, persoonId) {
@@ -454,12 +631,11 @@ function toonMensen() {
   // Wie nog nergens staat, komt bovenaan. Dit is de vraag waar het mee begon.
   const zonderBlok = maak('div', {});
   zonderBlok.append(
-    maak('nldd-container', { padding: '0', 'padding-block-end': '8' }, [
-      maak('nldd-title', { size: '4' }, [
-        maak('h2', {}, [`Nog geen plek (${zonder.length})`]),
-      ]),
+    maak('nldd-title', { size: '4' }, [
+      maak('h2', {}, [`Nog geen plek (${zonder.length})`]),
     ])
   );
+  zonderBlok.append(maak('nldd-spacer', { size: '12' }));
 
   if (zonder.length === 0) {
     zonderBlok.append(
@@ -483,10 +659,9 @@ function toonMensen() {
   // En de rest, met waar ze staan.
   const metBlok = maak('div', {});
   metBlok.append(
-    maak('nldd-container', { padding: '0', 'padding-block-end': '8' }, [
-      maak('nldd-title', { size: '4' }, [maak('h2', {}, [`Geplaatst (${met.length})`])]),
-    ])
+    maak('nldd-title', { size: '4' }, [maak('h2', {}, [`Geplaatst (${met.length})`])])
   );
+  metBlok.append(maak('nldd-spacer', { size: '12' }));
   const metLijst = maak('nldd-list', {
     variant: 'box',
     type: 'list',
@@ -525,12 +700,8 @@ function persoonItem(persoon, plek, eenheid) {
     'supporting-text': plek ? `${plek.rol}, ${eenheid?.naam ?? ''}` : 'Nog niet geplaatst',
     size: 6,
   });
-  // Slepen vanuit de mensenlijst naar een plek in de formatieweergave.
-  titel.setAttribute('draggable', 'true');
-  titel.addEventListener('dragstart', (e) => {
-    e.dataTransfer.setData('text/plain', persoon.id);
-    e.dataTransfer.effectAllowed = 'move';
-  });
+  // Sleepbaar, zodat je vanuit deze lijst iemand op een plek kunt zetten.
+  maakSleepbaar(titel, persoon);
   item.append(titel);
 
   if (persoon.herkomst === 'werving') {
