@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Formatieplaat</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@nldd/design-system@0.8.88/dist/css/global.css">
+<script src="https://cdn.jsdelivr.net/npm/@nldd/design-system@0.8.88/dist/nldd.min.js"></script>
+<link rel="stylesheet" href="src/app.css">
+</head>
+<body>
+
+<nldd-skip-link href="#hoofd">Direct naar de inhoud</nldd-skip-link>
+
+<nldd-app-view>
+  <nldd-navigation-split-view
+    id="shell"
+    primary-sidebar-accessible-label="Scenario's en toets"
+    inspector-accessible-label="Details">
+
+    <!-- Links: scenario's kiezen en de toets lezen. Hoogste prioriteit na main. -->
+    <nldd-split-view-pane slot="primary-sidebar">
+      <nldd-page background="tinted">
+        <nldd-container padding="16" gap="16" layout="stack">
+
+          <nldd-container layout="stack" gap="4" padding="0">
+            <nldd-title size="5"><h2>Scenario's</h2></nldd-title>
+            <nldd-text size="sm" color="secondary">
+              Varianten op dezelfde mensen en dezelfde opgave.
+            </nldd-text>
+          </nldd-container>
+
+          <nldd-list id="scenario-lijst" variant="box" type="navigation"
+                     accessible-label="Scenario's"></nldd-list>
+
+          <nldd-button id="scenario-toevoegen" variant="secondary" size="sm"
+                       start-icon="plus" text="Scenario erbij"></nldd-button>
+
+          <nldd-divider></nldd-divider>
+
+          <nldd-container layout="stack" gap="4" padding="0">
+            <nldd-title size="5"><h2>Toets</h2></nldd-title>
+            <nldd-text size="sm" color="secondary">
+              Herberekent bij elke wijziging.
+            </nldd-text>
+          </nldd-container>
+
+          <nldd-list id="toets-lijst" variant="box" type="list"
+                     accessible-label="Toetsresultaten"></nldd-list>
+
+        </nldd-container>
+      </nldd-page>
+    </nldd-split-view-pane>
+
+    <!-- Midden: de plaat zelf. -->
+    <nldd-split-view-pane slot="main">
+      <nldd-page id="hoofd">
+
+        <nldd-top-title-bar slot="header" id="titelbalk">
+          <nldd-toolbar slot="toolbar" size="md" label="Acties">
+            <nldd-toolbar-item>
+              <nldd-segmented-control id="view-keuze" value="formatie"
+                                      size="sm" accessible-label="Weergave">
+                <nldd-segmented-control-item value="formatie" text="Formatie"></nldd-segmented-control-item>
+                <nldd-segmented-control-item value="organogram" text="Organogram"></nldd-segmented-control-item>
+                <nldd-segmented-control-item value="mensen" text="Mensen"></nldd-segmented-control-item>
+                <nldd-segmented-control-item value="vergelijk" text="Vergelijk"></nldd-segmented-control-item>
+              </nldd-segmented-control>
+            </nldd-toolbar-item>
+            <nldd-toolbar-item>
+              <nldd-button id="undo" variant="neutral-tinted" size="sm"
+                           start-icon="arrow-counter-clockwise" text="Ongedaan maken"></nldd-button>
+            </nldd-toolbar-item>
+            <nldd-toolbar-item>
+              <nldd-button id="exporteer" variant="neutral-tinted" size="sm"
+                           start-icon="download" text="Exporteren"></nldd-button>
+            </nldd-toolbar-item>
+            <nldd-toolbar-item>
+              <nldd-button id="importeer" variant="neutral-tinted" size="sm"
+                           start-icon="upload" text="Importeren"></nldd-button>
+            </nldd-toolbar-item>
+          </nldd-toolbar>
+        </nldd-top-title-bar>
+
+        <div id="view"></div>
+      </nldd-page>
+    </nldd-split-view-pane>
+
+    <!-- Rechts: details van wat je aanklikt. Verdwijnt eerst op smal scherm. -->
+    <nldd-split-view-pane slot="inspector">
+      <nldd-page background="tinted">
+        <div id="inspector"></div>
+      </nldd-page>
+    </nldd-split-view-pane>
+
+  </nldd-navigation-split-view>
+</nldd-app-view>
+
+<!-- Sheet voor het bewerken van een plek. Hoort in body, niet in een pane. -->
+<nldd-sheet id="plek-sheet" placement="right" width="480px"
+            accessible-label="Plek bewerken">
+  <div id="plek-sheet-inhoud"></div>
+</nldd-sheet>
+
+<input type="file" id="import-bestand" accept="application/json" hidden>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>

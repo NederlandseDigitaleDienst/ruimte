@@ -1,0 +1,150 @@
+/**
+ * Eigen styling voor de ruimte *rond* en *tussen* de componenten.
+ * Alleen --primitives-* tokens; niets hardcoded, niets in shadow DOM.
+ */
+
+/* De drie panelen vullen de hoogte van het scherm. */
+nldd-app-view,
+nldd-navigation-split-view {
+  block-size: 100dvh;
+}
+
+/* --- Formatieweergave: teams onder elkaar, plekken als tabelrijen --- */
+
+.team {
+  margin-block-end: var(--primitives-space-32);
+}
+
+.team__kop {
+  display: flex;
+  align-items: center;
+  gap: var(--primitives-space-8);
+  flex-wrap: wrap;
+  margin-block-end: var(--primitives-space-8);
+}
+
+/* De cijfers naast een teamnaam: fte, kosten, bezetting. */
+.team__cijfers {
+  display: flex;
+  gap: var(--primitives-space-12);
+  flex-wrap: wrap;
+  margin-inline-start: auto;
+}
+
+/* --- Organogram --- */
+
+.organogram {
+  display: flex;
+  flex-direction: column;
+  gap: var(--primitives-space-16);
+}
+
+.organogram__laag {
+  display: flex;
+  gap: var(--primitives-space-12);
+  flex-wrap: wrap;
+}
+
+.organogram__kaart {
+  flex: 1 1 240px;
+  min-inline-size: 0;
+}
+
+/* Bezettingsbalkje in een organogramkaart. */
+.bezetting {
+  display: flex;
+  gap: var(--primitives-space-2);
+  margin-block-start: var(--primitives-space-8);
+}
+
+.bezetting__blok {
+  block-size: var(--primitives-space-8);
+  flex: 1 1 0;
+  border-radius: var(--primitives-corner-radius-full, 999px);
+  background: light-dark(
+    var(--primitives-color-neutral-150),
+    var(--primitives-color-neutral-700)
+  );
+}
+
+.bezetting__blok[data-bezet='true'] {
+  background: light-dark(
+    var(--primitives-color-accent-500),
+    var(--primitives-color-accent-400)
+  );
+}
+
+/* --- Vergelijkweergave: scenario's naast elkaar --- */
+
+.vergelijk {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--primitives-space-16);
+}
+
+/* Een regel die in het ene scenario anders is dan in het andere. */
+.verschil {
+  display: flex;
+  align-items: baseline;
+  gap: var(--primitives-space-8);
+  padding-block: var(--primitives-space-6);
+}
+
+.verschil + .verschil {
+  border-block-start: 1px solid light-dark(
+    var(--primitives-color-neutral-100),
+    var(--primitives-color-neutral-750)
+  );
+}
+
+/* --- Mensenweergave --- */
+
+.mensen-kolommen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--primitives-space-24);
+  align-items: start;
+}
+
+/* --- Slepen --- */
+
+/* Een plek die een gesleepte persoon kan ontvangen. */
+.ontvangt {
+  outline: 2px dashed light-dark(
+    var(--primitives-color-accent-500),
+    var(--primitives-color-accent-400)
+  );
+  outline-offset: 2px;
+  border-radius: var(--primitives-corner-radius-200, 8px);
+}
+
+[draggable='true'] {
+  cursor: grab;
+}
+
+/* --- Inspector --- */
+
+.inspector-leeg {
+  padding: var(--primitives-space-24);
+}
+
+.kenmerk {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--primitives-space-12);
+  padding-block: var(--primitives-space-6);
+}
+
+.kenmerk + .kenmerk {
+  border-block-start: 1px solid light-dark(
+    var(--primitives-color-neutral-100),
+    var(--primitives-color-neutral-750)
+  );
+}
+
+/* Tags op een rij, bijvoorbeeld expertise. */
+.tagrij {
+  display: flex;
+  gap: var(--primitives-space-4);
+  flex-wrap: wrap;
+}
