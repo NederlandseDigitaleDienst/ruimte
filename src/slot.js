@@ -12,16 +12,21 @@ import { maak, leeg, el } from './dom.js';
 
 const KORTSTE_WACHTWOORD = 8;
 
+/** De app-shell, niet het slotscherm zelf. */
+function appShell() {
+  return document.querySelector('body > nldd-app-view');
+}
+
 function toonLaag() {
   const laag = el('slot');
   laag.hidden = false;
-  document.querySelector('nldd-app-view')?.setAttribute('inert', '');
+  appShell()?.setAttribute('inert', '');
   return leeg(laag);
 }
 
 export function verbergSlot() {
   el('slot').hidden = true;
-  document.querySelector('nldd-app-view')?.removeAttribute('inert');
+  appShell()?.removeAttribute('inert');
 }
 
 /** Focus het wachtwoordveld; het echte input zit in de shadow DOM. */
@@ -73,8 +78,14 @@ function vraag({ titel, uitleg, knop, bevestigen = false, waarschuwing = null, c
       melding.textContent = tekst ?? '';
     };
 
+    // Klik en Enter kunnen allebei binnenkomen, en een tweede poging mag niet
+    // starten terwijl de eerste nog aan het afleiden is: dat kost seconden en
+    // zou de belofte twee keer oplossen.
+    let bezig = false;
+
     const verzend = async (gebeurtenis) => {
       gebeurtenis?.preventDefault();
+      if (bezig) return;
       const wachtwoord = leesVeld(wachtwoordVeld);
 
       if (wachtwoord.length < KORTSTE_WACHTWOORD) {
@@ -86,6 +97,7 @@ function vraag({ titel, uitleg, knop, bevestigen = false, waarschuwing = null, c
         return;
       }
 
+      bezig = true;
       toonFout(null);
       knopElement.toggleAttribute('loading', true);
       knopElement.toggleAttribute('disabled', true);
@@ -94,7 +106,12 @@ function vraag({ titel, uitleg, knop, bevestigen = false, waarschuwing = null, c
         verbergSlot();
         klaar(wachtwoord);
       } catch (fout) {
-        toonFout(fout?.message ?? 'Dat lukte niet.');
+        toonFout(
+          fout?.name === 'WachtwoordFout'
+            ? 'Dit wachtwoord klopt niet.'
+            : (fout?.message ?? 'Dat lukte niet.')
+        );
+        bezig = false;
         knopElement.removeAttribute('loading');
         knopElement.removeAttribute('disabled');
         focusVeld(wachtwoordVeld);
@@ -119,28 +136,27 @@ function vraag({ titel, uitleg, knop, bevestigen = false, waarschuwing = null, c
       ]),
     ]);
 
+    // Geen eigen nldd-app-view hieromheen: die van de app staat al in de
+    // pagina, en een tweede maakt `querySelector('nldd-app-view')` in
+    // verbergSlot() dubbelzinnig. Dan haal je het inert van het verkeerde
+    // element af en is de app niet meer aanklikbaar.
     houder.append(
-      maak('nldd-app-view', {}, [
-        maak('nldd-page', {}, [
-          maak(
-            'nldd-simple-section',
-            { width: '420px' },
-            [
-              maak('nldd-title', { size: '2' }, [maak('h1', {}, [titel])]),
-              maak('nldd-spacer', { size: '8' }),
-              maak('nldd-text', { color: 'secondary' }, [uitleg]),
-              maak('nldd-spacer', { size: '24' }),
-              waarschuwing
-                ? maak('nldd-banner', {
-                    variant: 'warning',
-                    text: waarschuwing,
-                  })
-                : null,
-              waarschuwing ? maak('nldd-spacer', { size: '16' }) : null,
-              form,
-            ].filter(Boolean)
-          ),
-        ]),
+      maak('nldd-page', {}, [
+        maak(
+          'nldd-simple-section',
+          { width: '420px' },
+          [
+            maak('nldd-title', { size: '2' }, [maak('h1', {}, [titel])]),
+            maak('nldd-spacer', { size: '8' }),
+            maak('nldd-text', { color: 'secondary' }, [uitleg]),
+            maak('nldd-spacer', { size: '24' }),
+            waarschuwing
+              ? maak('nldd-banner', { variant: 'warning', text: waarschuwing })
+              : null,
+            waarschuwing ? maak('nldd-spacer', { size: '16' }) : null,
+            form,
+          ].filter(Boolean)
+        ),
       ])
     );
 

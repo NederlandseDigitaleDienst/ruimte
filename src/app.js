@@ -2338,6 +2338,9 @@ function toonTitel() {
 }
 
 function toonAlles() {
+  // Na vergrendelen is er geen state meer. De abonnee vuurt dan nog wel, dus
+  // hier stoppen, anders tekent de plaat zichzelf opnieuw over het slot heen.
+  if (!huidigeState()) return;
   toonTitel();
   toonViews();
   toonScenarios();
