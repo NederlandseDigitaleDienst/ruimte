@@ -437,6 +437,23 @@ function plekRij(plek, perPlek, persoonById) {
     if (match && match.score < 70) {
       wieCel.append(letOpTag(match));
     }
+    // Iemand er weer af halen moet hier kunnen, niet alleen via de inspector.
+    wieCel.append(
+      maak('nldd-tooltip', { text: `${persoon.naam} van deze plek halen`, placement: 'top' }, [
+        maak('nldd-icon-button', {
+          icon: 'close',
+          size: 'sm',
+          variant: 'neutral-transparent',
+          'accessible-label': `${persoon.naam} van ${plek.rol} halen`,
+          on: {
+            click: (e) => {
+              e.stopPropagation();
+              haalVanPlek(plek.id);
+            },
+          },
+        }),
+      ])
+    );
   } else {
     // Een vacature is een uitnodiging, geen mededeling: hier kies je iemand.
     wieCel.append(vacatureKnop(plek));
@@ -529,6 +546,25 @@ function vacatureKnop(plek) {
       const huidige = plekkenVan(state, sc.id).find((p) => p.id === huidigePlekId);
       lijst.append(kandidaatItem(persoon, match, plek, popover, huidige));
     }
+
+    // Het zoekveld van een listbox filtert niet zelf: dat is aan ons. Zonder
+    // dit staat er een veld dat niets doet.
+    lijst.addEventListener('input', (e) => {
+      const term = (e.detail?.value ?? e.target?.value ?? '').trim().toLowerCase();
+      for (const item of lijst.querySelectorAll('nldd-list-item')) {
+        const zoekbaar = (item.dataset.zoek ?? '').toLowerCase();
+        item.hidden = term.length > 0 && !zoekbaar.includes(term);
+      }
+    });
+
+    lijst.append(
+      maak('nldd-inline-dialog', {
+        slot: 'no-results',
+        text: 'Niemand gevonden',
+        'supporting-text': 'Pas de zoekterm aan.',
+      })
+    );
+
     inhoud.append(lijst);
   }
 
@@ -539,7 +575,7 @@ function vacatureKnop(plek) {
 }
 
 function kandidaatItem(persoon, match, plek, popover, huidigePlek) {
-  return maak(
+  const item = maak(
     'nldd-list-item',
     {
       size: 'sm',
@@ -570,6 +606,15 @@ function kandidaatItem(persoon, match, plek, popover, huidigePlek) {
       ]),
     ]
   );
+
+  // Waarop het zoekveld filtert: naam, expertise en waar iemand nu staat.
+  item.dataset.zoek = [
+    persoon.naam,
+    ...(persoon.expertise ?? []),
+    huidigePlek?.rol ?? '',
+  ].join(' ');
+
+  return item;
 }
 
 /**
@@ -1803,63 +1848,94 @@ function verwijderPersoon(persoonId) {
 
 // ---------------------------------------------------------------- scenario's
 
-function scenarioToevoegen() {
-  const state = huidigeState();
-  const bron = scenario(state);
-  const id = nieuwId('s');
-  // "(kopie)" niet stapelen bij een kopie van een kopie.
-  const stam = bron.naam.replace(/\s*\(kopie(?:\s\d+)?\)\s*$/, '');
+/** Naam voor een kopie, zonder "(kopie)" te stapelen. */
+function kopieNaam(state, bronNaam) {
+  const stam = bronNaam.replace(/\s*\(kopie(?:\s\d+)?\)\s*$/, '');
   const bestaand = state.scenarios.filter((s) => s.naam.startsWith(`${stam} (kopie`)).length;
-  const naam = bestaand ? `${stam} (kopie ${bestaand + 1})` : `${stam} (kopie)`;
+  return bestaand ? `${stam} (kopie ${bestaand + 1})` : `${stam} (kopie)`;
+}
 
-  muteer(`Scenario gekopieerd van ${bron.naam}`, (s) => {
-    s.scenarios.push({
-      id,
-      naam,
-      beschrijving: `Gekopieerd van ${bron.naam}`,
-      gekopieerdVan: bron.naam,
-      toewijzingen: { ...bron.toewijzingen },
-      extraPlekken: structuredClone(bron.extraPlekken ?? []),
-      verwijderdePlekken: [...(bron.verwijderdePlekken ?? [])],
-    });
-    s.actiefScenario = id;
-  });
-  // Meteen openen: je kopieert een scenario om het een eigen naam en richting
-  // te geven, niet om "(kopie)" te laten staan.
-  openScenarioSheet(id);
+function scenarioToevoegen() {
+  // Nog niets aanmaken: de sheet vraagt eerst waarvan je kopieert. Zo hoef je
+  // niet eerst het juiste scenario te selecteren, en laat annuleren geen half
+  // scenario achter.
+  openScenarioSheet(null);
 }
 
 let sheetScenarioId = null;
 
+/** `scenarioId` null betekent: een nieuw scenario samenstellen. */
 function openScenarioSheet(scenarioId) {
   sheetScenarioId = scenarioId;
   const state = huidigeState();
-  const sc = state.scenarios.find((x) => x.id === scenarioId);
-  if (!sc) return;
+  const nieuw = scenarioId == null;
+  const sc = nieuw ? null : state.scenarios.find((x) => x.id === scenarioId);
+  if (!nieuw && !sc) return;
 
   const houder = leeg(el('scenario-sheet-inhoud'));
   const container = maak('nldd-container', { padding: '24', layout: 'stack', gap: '16' });
 
-  container.append(maak('nldd-title', { size: '4' }, [maak('h2', {}, ['Scenario'])]));
+  container.append(
+    maak('nldd-title', { size: '4' }, [
+      maak('h2', {}, [nieuw ? 'Nieuw scenario' : 'Scenario']),
+    ])
+  );
 
-  if (sc.gekopieerdVan) {
-    container.append(
-      maak('nldd-inline-dialog', {
-        icon: 'copy',
-        text: `Kopie van ${sc.gekopieerdVan}`,
-        'supporting-text':
-          'De plekken en toewijzingen zijn overgenomen. Mensen en teams zijn gedeeld, ' +
-          'dus die blijven hetzelfde in elk scenario.',
-      })
+  const form = maak('nldd-form', { id: 'scenario-form' });
+
+  if (nieuw) {
+    // Waarvan kopiëren is de eerste vraag, want die bepaalt de rest.
+    const bronSelect = maak('select', { name: 'bron' });
+    bronSelect.append(maak('option', { value: '' }, ['Leeg beginnen, zonder plekken']));
+    for (const kandidaat of state.scenarios) {
+      const optie = maak('option', { value: kandidaat.id }, [kandidaat.naam]);
+      if (kandidaat.id === state.actiefScenario) optie.setAttribute('selected', '');
+      bronSelect.append(optie);
+    }
+
+    form.append(
+      maak('nldd-form-field', {
+        label: 'Kopiëren van',
+        'supporting-label': 'De plekken en toewijzingen worden overgenomen',
+      }, [maak('nldd-dropdown', {}, [bronSelect])])
+    );
+
+    const naamVeld = maak('nldd-text-field', {
+      name: 'naam',
+      value: kopieNaam(state, scenario(state).naam),
+    });
+
+    // De naam volgt de gekozen bron, tot je hem zelf aanpast.
+    let naamZelfGetypt = false;
+    naamVeld.addEventListener('input', () => {
+      naamZelfGetypt = true;
+    });
+    bronSelect.addEventListener('change', () => {
+      if (naamZelfGetypt) return;
+      const bron = state.scenarios.find((x) => x.id === bronSelect.value);
+      naamVeld.value = bron ? kopieNaam(state, bron.naam) : 'Nieuw scenario';
+    });
+
+    form.append(maak('nldd-form-field', { label: 'Naam' }, [naamVeld]));
+  } else {
+    if (sc.gekopieerdVan) {
+      container.append(
+        maak('nldd-inline-dialog', {
+          icon: 'copy',
+          text: `Kopie van ${sc.gekopieerdVan}`,
+          'supporting-text':
+            'De plekken en toewijzingen zijn overgenomen. Mensen en teams zijn gedeeld, ' +
+            'dus die blijven hetzelfde in elk scenario.',
+        })
+      );
+    }
+    form.append(
+      maak('nldd-form-field', { label: 'Naam' }, [
+        maak('nldd-text-field', { name: 'naam', value: sc.naam ?? '' }),
+      ])
     );
   }
 
-  const form = maak('nldd-form', { id: 'scenario-form' });
-  form.append(
-    maak('nldd-form-field', { label: 'Naam' }, [
-      maak('nldd-text-field', { name: 'naam', value: sc.naam ?? '' }),
-    ])
-  );
   form.append(
     maak('nldd-form-field', {
       label: 'Waar gaat deze variant over',
@@ -1869,7 +1945,7 @@ function openScenarioSheet(scenarioId) {
       maak('nldd-multi-line-text-field', {
         name: 'beschrijving',
         rows: '3',
-        value: sc.beschrijving ?? '',
+        value: nieuw ? '' : (sc.beschrijving ?? ''),
       }),
     ])
   );
@@ -1878,13 +1954,13 @@ function openScenarioSheet(scenarioId) {
   container.append(
     maak('nldd-button', {
       variant: 'primary',
-      text: 'Opslaan',
-      on: { click: () => bewaarScenario() },
+      text: nieuw ? 'Scenario maken' : 'Opslaan',
+      on: { click: () => (nieuw ? maakScenario() : bewaarScenario()) },
     })
   );
 
   // Het laatste scenario weggooien laat niets over om naar te kijken.
-  if (state.scenarios.length > 1) {
+  if (!nieuw && state.scenarios.length > 1) {
     container.append(maak('nldd-spacer', { size: '24' }));
     container.append(maak('nldd-divider', {}));
     container.append(
@@ -1899,6 +1975,34 @@ function openScenarioSheet(scenarioId) {
 
   houder.append(container);
   el('scenario-sheet').show();
+}
+
+function maakScenario() {
+  const form = el('scenario-form');
+  const lees = (naam) => form.querySelector(`[name="${naam}"]`)?.value ?? '';
+  const state = huidigeState();
+  const bron = state.scenarios.find((x) => x.id === lees('bron')) ?? null;
+  const naam = lees('naam').trim() || 'Naamloos scenario';
+  const beschrijving = lees('beschrijving').trim();
+  const id = nieuwId('s');
+
+  muteer(bron ? `Scenario gekopieerd van ${bron.naam}` : 'Scenario toegevoegd', (s) => {
+    s.scenarios.push({
+      id,
+      naam,
+      beschrijving: beschrijving || (bron ? `Gekopieerd van ${bron.naam}` : ''),
+      gekopieerdVan: bron?.naam ?? null,
+      toewijzingen: bron ? { ...bron.toewijzingen } : {},
+      extraPlekken: bron ? structuredClone(bron.extraPlekken ?? []) : [],
+      // Leeg beginnen betekent: alle basisplekken weg, je bouwt zelf op.
+      verwijderdePlekken: bron
+        ? [...(bron.verwijderdePlekken ?? [])]
+        : s.plekken.map((p) => p.id),
+    });
+    s.actiefScenario = id;
+  });
+
+  el('scenario-sheet').hide();
 }
 
 function bewaarScenario() {
