@@ -92,6 +92,11 @@ echte namen in gaan.
 
 ## Gebruik
 
+De tool staat op https://nederlandsedigitaledienst.github.io/ruimte/. Elke
+push naar `main` publiceert opnieuw, na de tests.
+
+Lokaal:
+
 ```sh
 uv run --no-project python serve.py
 ```
