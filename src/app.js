@@ -38,6 +38,7 @@ import {
   functiegroepenPerFamilie,
   FUNCTIEFAMILIES,
   bekendeRollen,
+  schaalPastBijFunctiegroep,
 } from './fgr.js';
 
 const el = (id) => document.getElementById(id);
@@ -433,7 +434,40 @@ function plekRij(plek, perPlek, persoonById) {
   rij.append(
     maak('nldd-text-cell', { text: groep?.naam ?? '—', 'hide-below': 'lg', color: 'secondary' })
   );
-  rij.append(maak('nldd-text-cell', { text: String(plek.schaal ?? '—'), 'hide-below': 'md' }));
+  // De schaal moet binnen het bereik van de functiegroep vallen. Valt hij
+  // erbuiten, dan is dat niet verboden maar vraagt het onderbouwing in het
+  // formatierapport, dus het hoort hier te staan en niet alleen in de toets.
+  const schaalCel = maak('nldd-cell', { 'hide-below': 'md' });
+  const buitenBereik = plek.functiegroep
+    ? !schaalPastBijFunctiegroep(plek.functiegroep, plek.schaal)
+    : false;
+  // Getal en waarschuwing naast elkaar: de cel stapelt anders verticaal.
+  const schaalRegel = maak('div', { class: 'schaalrij' });
+  schaalCel.append(schaalRegel);
+  schaalRegel.append(
+    maak('nldd-text', { size: 'sm', color: buitenBereik ? 'critical' : 'content' }, [
+      String(plek.schaal ?? '—'),
+    ])
+  );
+  if (buitenBereik && groep) {
+    schaalRegel.append(
+      maak('nldd-tooltip', {
+        text:
+          `${groep.naam} loopt van schaal ${groep.min} tot en met ${groep.max}. ` +
+          'Een plek daarbuiten vraagt onderbouwing.',
+        placement: 'top',
+      }, [
+        maak('nldd-tag', {
+          color: 'donkergeel',
+          size: 'sm',
+          icon: 'warning',
+          variant: 'icon',
+          'accessible-label': `Schaal ${plek.schaal} valt buiten het bereik ${groep.min} tot en met ${groep.max} van ${groep.naam}`,
+        }),
+      ])
+    );
+  }
+  rij.append(schaalCel);
   rij.append(maak('nldd-text-cell', { text: formatFte(plek.fte ?? 0), 'hide-below': 'md' }));
 
   // De cel waar je iemand naartoe sleept. De cel is zelf het sleepbare
@@ -1060,19 +1094,24 @@ function teamVerschillen(state, sc) {
   if (!alleen.length && !mist.length) return [];
 
   const regels = [];
+  const woord = (n) => (n === 1 ? 'team' : 'teams');
   if (alleen.length) {
     regels.push(
       maak('div', { class: 'verschil' }, [
-        maak('nldd-tag', { color: 'groen', size: 'sm', text: 'alleen hier' }),
-        maak('nldd-text', { size: 'sm' }, [formatOpsomming(alleen)]),
+        maak('nldd-tag', { color: 'groen', size: 'sm', text: 'extra' }),
+        maak('nldd-text', { size: 'sm' }, [
+          `${woord(alleen.length)} alleen hier: ${formatOpsomming(alleen)}`,
+        ]),
       ])
     );
   }
   if (mist.length) {
     regels.push(
       maak('div', { class: 'verschil' }, [
-        maak('nldd-tag', { color: 'neutral', size: 'sm', text: 'niet hier' }),
-        maak('nldd-text', { size: 'sm' }, [formatOpsomming(mist)]),
+        maak('nldd-tag', { color: 'neutral', size: 'sm', text: 'mist' }),
+        maak('nldd-text', { size: 'sm' }, [
+          `${woord(mist.length)} hier niet: ${formatOpsomming(mist)}`,
+        ]),
       ])
     );
   }
@@ -1498,11 +1537,39 @@ function openPlekSheet(plekId) {
     }, [maak('nldd-dropdown', {}, [select])])
   );
 
-  form.append(
-    maak('nldd-form-field', { label: 'Schaal' }, [
-      maak('nldd-number-field', { name: 'schaal', value: String(plek.schaal ?? 12), min: '1', max: '18' }),
-    ])
-  );
+  // Meteen zeggen of de schaal bij de functiegroep past, in plaats van het
+  // pas in de toets te laten zien.
+  const schaalVeld = maak('nldd-number-field', {
+    name: 'schaal',
+    value: String(plek.schaal ?? 12),
+    min: '1',
+    max: '18',
+  });
+  const schaalVeldjes = maak('nldd-form-field', { label: 'Schaal' }, [schaalVeld]);
+  const schaalHint = maak('nldd-form-field-help-text', {});
+  schaalVeldjes.append(schaalHint);
+
+  const toetsSchaal = () => {
+    const gekozen = functiegroep(select.value);
+    const waarde = Number(schaalVeld.value);
+    if (!gekozen || !waarde) {
+      schaalHint.textContent = '';
+      schaalVeld.removeAttribute('invalid');
+      return;
+    }
+    const past = waarde >= gekozen.min && waarde <= gekozen.max;
+    schaalVeld.toggleAttribute('invalid', !past);
+    schaalHint.textContent = past
+      ? `Binnen het bereik van ${gekozen.naam} (${gekozen.min} tot en met ${gekozen.max}).`
+      : `${gekozen.naam} loopt van schaal ${gekozen.min} tot en met ${gekozen.max}. ` +
+        'Daarbuiten kan, maar vraagt onderbouwing in het formatierapport.';
+  };
+
+  schaalVeld.addEventListener('input', toetsSchaal);
+  select.addEventListener('change', toetsSchaal);
+  toetsSchaal();
+
+  form.append(schaalVeldjes);
 
   form.append(
     maak('nldd-form-field', { label: 'Fte' }, [

@@ -141,6 +141,13 @@ nldd-table-row nldd-title-cell {
   hyphens: none;
 }
 
+/* Schaalgetal met zijn waarschuwing ernaast. */
+.schaalrij {
+  display: flex;
+  align-items: center;
+  gap: var(--primitives-space-6);
+}
+
 /* Naam, markering en het kruisje naast elkaar in de Wie-kolom. */
 .wierij {
   display: flex;
