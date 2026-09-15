@@ -481,7 +481,7 @@ function plekRij(plek, perPlek, persoonById) {
       match && match.score < 70 ? letOpTag(match) : null,
       maak('nldd-tooltip', { text: `${persoon.naam} van deze plek halen`, placement: 'top' }, [
         maak('nldd-icon-button', {
-          icon: 'close',
+          icon: 'dismiss',
           size: 'sm',
           variant: 'neutral-transparent',
           'accessible-label': `${persoon.naam} van ${plek.rol} halen`,
@@ -2245,6 +2245,37 @@ function verwijderScenario(scenarioId) {
 
 // ---------------------------------------------------------------- import/export
 
+/**
+ * Alles weggooien om met een echte organisatie te beginnen. Onomkeerbaar
+ * voelt het niet, want undo vangt het op; wie de teamindeling wil houden
+ * exporteert eerst.
+ */
+function leegMaken() {
+  muteer('Plaat leeggemaakt', (s) => {
+    s.naam = 'Formatieplaat';
+    s.personen = [];
+    s.plekken = [];
+    s.eenheden = [{ id: nieuwId('e'), naam: 'Nieuw team', soort: 'core', parentId: null }];
+    s.scenarios = [
+      {
+        id: 's-1',
+        naam: 'Eerste opzet',
+        beschrijving: '',
+        toewijzingen: {},
+        extraPlekken: [],
+        verwijderdePlekken: [],
+        extraEenheden: [],
+        verwijderdeEenheden: [],
+      },
+    ];
+    s.actiefScenario = 's-1';
+  });
+  selectie = null;
+  actieveView = 'formatie';
+  toonAlles();
+  meldTijdelijk('success', 'De plaat is leeg. Begin met een team en voeg daar plekken aan toe.');
+}
+
 function exporteerBestand() {
   const blob = new Blob([exporteer()], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -2262,16 +2293,21 @@ function importeerBestand(bestand) {
       // vervangState normaliseert en gooit als het geen formatieplaat is.
       vervangState(JSON.parse(String(lezer.result)), 'Bestand geïmporteerd');
     } catch {
-      meldFout('Dit bestand kon niet worden gelezen. Verwacht is een eerder geëxporteerde formatieplaat.');
+      meldTijdelijk(
+        'alert',
+        'Dit bestand kon niet worden gelezen. Verwacht is een eerder geëxporteerde formatieplaat.',
+        6000
+      );
     }
   };
   lezer.readAsText(bestand);
 }
 
-function meldFout(tekst) {
-  const melding = maak('nldd-notification', { variant: 'alert', text: tekst });
+/** Een melding die vanzelf weer verdwijnt. */
+function meldTijdelijk(variant, tekst, ms = 5000) {
+  const melding = maak('nldd-notification', { variant, text: tekst });
   document.body.append(melding);
-  setTimeout(() => melding.remove(), 6000);
+  setTimeout(() => melding.remove(), ms);
 }
 
 // ---------------------------------------------------------------- tekenen
@@ -2323,6 +2359,7 @@ el('undo').addEventListener('click', () => {
 });
 
 el('exporteer').addEventListener('click', exporteerBestand);
+el('leegmaken').addEventListener('click', leegMaken);
 el('importeer').addEventListener('click', () => el('import-bestand').click());
 el('import-bestand').addEventListener('change', (e) => {
   const bestand = e.target.files?.[0];
@@ -2331,12 +2368,7 @@ el('import-bestand').addEventListener('change', (e) => {
 });
 
 function meldOngedaan(beschrijving) {
-  const melding = maak('nldd-notification', {
-    variant: 'success',
-    text: `Ongedaan gemaakt: ${beschrijving}`,
-  });
-  document.body.append(melding);
-  setTimeout(() => melding.remove(), 4000);
+  meldTijdelijk('success', `Ongedaan gemaakt: ${beschrijving}`, 4000);
 }
 
 // Ctrl/Cmd+Z, want dit is een werkinstrument.

@@ -188,10 +188,15 @@ export function toets(state, scenarioId) {
   bevindingen.push({
     id: 'engineersratio',
     titel: 'Aandeel engineering',
-    status: ratio >= norm.minEngineerRatio - 1e-9 ? 'ok' : 'waarschuwing',
-    samenvatting: `${Math.round(ratio * 100)}% van de formatie is engineering (norm: minimaal ${Math.round(
-      norm.minEngineerRatio * 100
-    )}%)`,
+    // Een lege plaat is niet fout, je bent nog niet begonnen.
+    status:
+      totaalFte === 0 || ratio >= norm.minEngineerRatio - 1e-9 ? 'ok' : 'waarschuwing',
+    samenvatting:
+      totaalFte === 0
+        ? 'Nog geen formatie om te toetsen'
+        : `${Math.round(ratio * 100)}% van de formatie is engineering (norm: minimaal ${Math.round(
+            norm.minEngineerRatio * 100
+          )}%)`,
     waarde: ratio,
     plekken: plekken.filter((p) => (p.expertise ?? []).includes('engineering')).map((p) => p.id),
   });
@@ -206,10 +211,16 @@ export function toets(state, scenarioId) {
   bevindingen.push({
     id: 'core-doorbraak',
     titel: 'Verhouding kern en doorbraak',
-    status: doorbraakRatio >= norm.minDoorbraakRatio - 1e-9 ? 'ok' : 'waarschuwing',
-    samenvatting: `${Math.round(doorbraakRatio * 100)}% zit op doorbraakprojecten, ${Math.round(
-      ((ftePerSoort.core ?? 0) / (totaalFte || 1)) * 100
-    )}% in het kernteam`,
+    status:
+      totaalFte === 0 || doorbraakRatio >= norm.minDoorbraakRatio - 1e-9
+        ? 'ok'
+        : 'waarschuwing',
+    samenvatting:
+      totaalFte === 0
+        ? 'Nog geen formatie om te verdelen'
+        : `${Math.round(doorbraakRatio * 100)}% zit op doorbraakprojecten, ${Math.round(
+            ((ftePerSoort.core ?? 0) / (totaalFte || 1)) * 100
+          )}% in het kernteam`,
     waarde: doorbraakRatio,
     verdeling: ftePerSoort,
   });
