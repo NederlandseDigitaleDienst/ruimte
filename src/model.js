@@ -320,14 +320,14 @@ export function matchKwaliteit(persoon, plek) {
     if (verschil > 0) {
       score -= 40;
       redenen.push(
-        `${wie} zit in schaal ${persoon.schaal}, deze plek is schaal ${plek.schaal}`
+        `${wie} zit nu in schaal ${persoon.schaal} en deze plek is schaal ${plek.schaal}, ` +
+          'dus een stap terug'
       );
     } else if (verschil <= -2) {
       score -= 25;
-      const aantal = Math.abs(verschil);
       redenen.push(
-        `Deze plek is ${aantal} ${aantal === 1 ? 'schaal' : 'schalen'} zwaarder dan ` +
-          `de schaal van ${wie} (${persoon.schaal} tegenover ${plek.schaal})`
+        `${wie} zit nu in schaal ${persoon.schaal} en deze plek is schaal ${plek.schaal}, ` +
+          'dus een flinke stap omhoog'
       );
     }
   }
@@ -339,7 +339,8 @@ export function matchKwaliteit(persoon, plek) {
     score -= (ontbreekt.length / vereist.length) * 35;
     if (ontbreekt.length > 0) {
       redenen.push(
-        `${wie} heeft geen ${formatOpsomming(ontbreekt)} in het profiel`
+        `Deze plek vraagt ${formatOpsomming(ontbreekt)}, ` +
+          `en dat staat niet bij de expertise van ${wie}`
       );
     }
   }
