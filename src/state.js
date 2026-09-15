@@ -17,6 +17,7 @@ import {
   openEnvelop,
   hermaakEnvelop,
   WachtwoordFout,
+  KDF_ITERATIES,
 } from './krypto.js';
 
 const OPSLAG_SLEUTEL = 'ruimte-v1';
@@ -181,6 +182,16 @@ export async function ontgrendel(wachtwoord, standaard) {
   sleutel = afgeleid;
   envelopVorm = JSON.parse(rauw);
 
+  // Een envelop van vóór een verhoging van het aantal rondes gaat hier over
+  // op de huidige waarde, met vers salt. Zonder deze stap blijft een oude
+  // plaat voor altijd op de oude, zwakkere afleiding staan.
+  if ((envelopVorm.kdf?.iteraties ?? 0) < KDF_ITERATIES) {
+    const vers = await maakEnvelop(wachtwoord, tekst);
+    localStorage.setItem(OPSLAG_SLEUTEL, JSON.stringify(vers.envelop));
+    sleutel = vers.sleutel;
+    envelopVorm = vers.envelop;
+  }
+
   const gelezen = normaliseer(JSON.parse(tekst));
   state = gelezen ?? structuredClone(standaard);
   if (!gelezen) bewaar();
@@ -245,7 +256,12 @@ export function normaliseer(rauw) {
   if (!Array.isArray(rauw.personen) || !Array.isArray(rauw.scenarios)) return null;
   if (!rauw.scenarios.length) return null;
 
-  const state = structuredClone(rauw);
+  // Een rondgang door JSON in plaats van structuredClone: die laat een eigen
+  // `__proto__`-sleutel uit een bestand staan, en Object.assign zet daarmee
+  // het prototype van de state. De plaat is toch al JSON.
+  const state = JSON.parse(JSON.stringify(rauw), (sleutel, waarde) =>
+    sleutel === '__proto__' || sleutel === 'constructor' ? undefined : waarde
+  );
   state.naam = state.naam ?? 'Ruimte';
   state.plekken = Array.isArray(state.plekken) ? state.plekken : [];
   state.eenheden = Array.isArray(state.eenheden) ? state.eenheden : [];

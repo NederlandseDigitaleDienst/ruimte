@@ -137,6 +137,16 @@ Web components uit `@nldd/design-system` 0.8.88, geen framework, geen build.
 | `autolock.js` | Vanzelf op slot na een kwartier |
 | `app.js` | Weergave en interactie |
 
-De opslag is versleuteld met een sleutel uit je wachtwoord. Het wachtwoord
-zelf wordt nergens bewaard, ook niet in het geheugen: alleen de afgeleide
-sleutel, en die is niet uitleesbaar vanuit JavaScript.
+De opslag is versleuteld met een sleutel uit je wachtwoord (PBKDF2, AES-GCM).
+Het wachtwoord wordt na het afleiden losgelaten: het staat niet in de opslag
+en niet meer in het invoerveld. Alleen de afgeleide sleutel blijft in het
+geheugen, en die is niet uitleesbaar vanuit JavaScript.
+
+`index.html` bevat een Content Security Policy en integriteitshashes voor
+de bestanden van de CDN. Bij een upgrade van het design system moeten die
+hashes mee; hoe staat in een commentaar in het bestand.
+
+Let op bij GitHub Pages: `naam.github.io/ruimte/` deelt zijn oorsprong, en dus
+zijn browseropslag, met elke andere Pages-site van hetzelfde account of dezelfde
+organisatie. Zet de tool op een eigen domein of in een organisatie zonder
+andere Pages-sites.

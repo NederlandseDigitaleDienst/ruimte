@@ -10,7 +10,12 @@
 
 import { maak, leeg, el } from './dom.js';
 
-const KORTSTE_WACHTWOORD = 8;
+/**
+ * Alleen voor nieuwe wachtwoorden. Er is geen server en dus geen lockout: de
+ * versleutelde plaat in de browseropslag is wat een aanvaller offline
+ * probeert, en acht tekens houden dat op een GPU uren tegen, geen jaren.
+ */
+const KORTSTE_WACHTWOORD = 12;
 
 /** De app-shell, niet het slotscherm zelf. */
 function appShell() {
@@ -24,8 +29,16 @@ function toonLaag() {
   return leeg(laag);
 }
 
+/**
+ * Verbergt én leegt het scherm. Alleen verbergen laat het wachtwoord in het
+ * invoerveld staan, uitleesbaar voor iedereen met de devtools of een
+ * extensie, zolang de plaat open staat.
+ */
 export function verbergSlot() {
-  el('slot').hidden = true;
+  const laag = el('slot');
+  for (const veld of laag.querySelectorAll('nldd-password-field')) wisVeld(veld);
+  leeg(laag);
+  laag.hidden = true;
   appShell()?.removeAttribute('inert');
 }
 
@@ -40,13 +53,30 @@ function leesVeld(veld) {
   return (invoer?.value ?? veld?.value ?? '').trim();
 }
 
+function wisVeld(veld) {
+  const invoer = veld?.shadowRoot?.querySelector('input') ?? veld?.querySelector('input');
+  if (invoer) invoer.value = '';
+  if (veld && 'value' in veld) veld.value = '';
+}
+
 /**
  * Bouwt het scherm en wacht tot er een geldig wachtwoord is ingevuld.
  *
  * `controleer` krijgt het wachtwoord en gooit als het niet klopt; de melding
  * uit die fout komt onder het veld te staan.
+ *
+ * Met `annuleerbaar` komt er een knop bij die het scherm sluit en null
+ * oplevert. Alleen voor bestanden: het slot zelf kun je niet wegklikken.
  */
-function vraag({ titel, uitleg, knop, bevestigen = false, waarschuwing = null, controleer }) {
+function vraag({
+  titel,
+  uitleg,
+  knop,
+  bevestigen = false,
+  waarschuwing = null,
+  annuleerbaar = false,
+  controleer,
+}) {
   return new Promise((klaar) => {
     const houder = toonLaag();
 
@@ -88,8 +118,14 @@ function vraag({ titel, uitleg, knop, bevestigen = false, waarschuwing = null, c
       if (bezig) return;
       const wachtwoord = leesVeld(wachtwoordVeld);
 
-      if (wachtwoord.length < KORTSTE_WACHTWOORD) {
+      // De lengte-eis geldt bij het kiezen, niet bij het openen: een plaat
+      // met een ouder, korter wachtwoord moet open blijven kunnen.
+      if (bevestigen && wachtwoord.length < KORTSTE_WACHTWOORD) {
         toonFout(`Gebruik minstens ${KORTSTE_WACHTWOORD} tekens.`);
+        return;
+      }
+      if (!wachtwoord) {
+        toonFout('Vul een wachtwoord in.');
         return;
       }
       if (bevestigen && wachtwoord !== leesVeld(herhaalVeld)) {
@@ -114,9 +150,26 @@ function vraag({ titel, uitleg, knop, bevestigen = false, waarschuwing = null, c
         bezig = false;
         knopElement.removeAttribute('loading');
         knopElement.removeAttribute('disabled');
+        wisVeld(wachtwoordVeld);
+        if (herhaalVeld) wisVeld(herhaalVeld);
         focusVeld(wachtwoordVeld);
       }
     };
+
+    const annuleerKnop = annuleerbaar
+      ? maak('nldd-button', {
+          variant: 'secondary',
+          text: 'Annuleren',
+          on: {
+            click: (e) => {
+              e.preventDefault();
+              if (bezig) return;
+              verbergSlot();
+              klaar(null);
+            },
+          },
+        })
+      : null;
 
     // Een echt formulier, zodat wachtwoordmanagers meedoen en Enter werkt.
     //
@@ -132,7 +185,7 @@ function vraag({ titel, uitleg, knop, bevestigen = false, waarschuwing = null, c
         herhaalVeld
           ? maak('nldd-form-field', { label: 'Herhaal wachtwoord' }, [herhaalVeld])
           : null,
-        maak('nldd-form-actions', {}, [knopElement]),
+        maak('nldd-form-actions', {}, [annuleerKnop, knopElement]),
       ]),
     ]);
 
@@ -161,8 +214,10 @@ function vraag({ titel, uitleg, knop, bevestigen = false, waarschuwing = null, c
     );
 
     // Enter in een veld verzendt ook. De keydown komt uit de shadow DOM van
-    // het component, vandaar capture.
-    houder.addEventListener(
+    // het component, vandaar capture. Op het formulier en niet op de laag:
+    // de laag blijft bestaan en zou anders per vergrendeling een luisteraar
+    // erbij krijgen.
+    form.addEventListener(
       'keydown',
       (e) => {
         if (e.key === 'Enter') verzend(e);
@@ -208,6 +263,7 @@ export function vraagBestandsWachtwoord({ nieuw }) {
       : 'Dit bestand is beveiligd met een wachtwoord.',
     knop: nieuw ? 'Opslaan' : 'Openen',
     bevestigen: nieuw,
+    annuleerbaar: true,
     controleer: async () => {},
   });
 }

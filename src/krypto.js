@@ -24,6 +24,12 @@
  */
 export const KDF_ITERATIES = 600_000;
 
+/**
+ * Bovengrens voor wat een envelop mag vragen. Zonder grens laat een bestand
+ * met twee miljard iteraties het tabblad minutenlang hangen bij importeren.
+ */
+export const MAX_KDF_ITERATIES = 10_000_000;
+
 export const SALT_BYTES = 16;
 export const IV_BYTES = 12;
 export const FORMAAT = 'ruimte-versleuteld';
@@ -147,6 +153,9 @@ export async function openEnvelop(envelop, wachtwoord) {
     throw new Error('Dit is geen versleutelde plaat');
   }
   const iteraties = envelop.kdf?.iteraties ?? KDF_ITERATIES;
+  if (!Number.isInteger(iteraties) || iteraties < 1 || iteraties > MAX_KDF_ITERATIES) {
+    throw new Error('Dit bestand vraagt een ongeldig aantal sleutelrondes');
+  }
   const salt = uitBase64(envelop.kdf.salt);
   const sleutel = await leidSleutelAf(wachtwoord, salt, iteraties);
 

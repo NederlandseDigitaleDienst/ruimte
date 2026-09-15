@@ -125,3 +125,12 @@ test('er staat niets leesbaars in de envelop', async () => {
     assert.ok(!ruw.includes(woord), `"${woord}" mag niet leesbaar in de opslag staan`);
   }
 });
+
+test('een envelop met een absurd aantal rondes wordt geweigerd', async () => {
+  // Anders hangt het tabblad minutenlang bij het importeren van zo'n bestand.
+  const { envelop } = await maakEnvelop('geheim', 'tekst');
+  const teVeel = { ...envelop, kdf: { ...envelop.kdf, iteraties: 2_000_000_000 } };
+  await assert.rejects(() => openEnvelop(teVeel, 'geheim'), /sleutelrondes/);
+  const nul = { ...envelop, kdf: { ...envelop.kdf, iteraties: 0 } };
+  await assert.rejects(() => openEnvelop(nul, 'geheim'), /sleutelrondes/);
+});

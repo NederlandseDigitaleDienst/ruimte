@@ -3,9 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- GitHub Pages stuurt geen eigen headers, dus het beleid staat hier.
+     connect-src 'none': niets op deze pagina mag naar buiten praten.
+     form-action 'none': het wachtwoordformulier kan nergens heen, ook niet
+     als preventDefault ooit faalt. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
 <title>Ruimte</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@nldd/design-system@0.8.88/dist/css/global.css">
-<script src="https://cdn.jsdelivr.net/npm/@nldd/design-system@0.8.88/dist/nldd.min.js"></script>
+<!-- Integriteitshashes van de vastgepinde versie. Alles op deze pagina
+     vertrouwt dit script: het ziet de ontgrendelde plaat. Bij een upgrade
+     de hashes opnieuw berekenen:
+     curl -sL URL | openssl dgst -sha384 -binary | openssl base64 -A -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@nldd/design-system@0.8.88/dist/css/global.css"
+      integrity="sha384-xwQZUA7Pji2PW+dds5Ilgk0jxggoGy5vHc+YFUapXEFZpS7ToJPA9nr6I2bjoG+u"
+      crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/@nldd/design-system@0.8.88/dist/nldd.min.js"
+        integrity="sha384-Ukt/9hzGcpGTosUAgrt3Z0Hku8/UC4j2zy2KTA+Ik/XyjPj61z4hCPw4mi9BvXZ+"
+        crossorigin="anonymous"></script>
 <link rel="stylesheet" href="src/app.css">
 </head>
 <body>

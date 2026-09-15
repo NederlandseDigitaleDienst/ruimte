@@ -7,6 +7,13 @@
  * en houdt de code leesbaar.
  */
 
+// Niet in een frame. Op een gedeelde oorsprong (zoals *.github.io) kan een
+// andere pagina de app anders inladen en van buitenaf in de DOM kijken.
+if (window.top !== window.self) {
+  window.top.location = window.self.location;
+  throw new Error('Ruimte draait niet in een frame');
+}
+
 import { voorbeeldState } from './voorbeelddata.js';
 import {
   huidigeState,
@@ -2390,9 +2397,13 @@ async function vergrendelNu() {
   stopAutoLock();
   await vergrendel();
   selectie = null;
-  leeg(el('view'));
-  leeg(el('inspector'));
+  // Alles wat uit de plaat komt, ook de lijsten links: scenario's hebben
+  // namen en beschrijvingen, en het slotscherm dekt de DOM alleen visueel af.
+  for (const id of ['view', 'inspector', 'view-lijst', 'scenario-lijst', 'toets-lijst']) {
+    leeg(el(id));
+  }
   for (const sheet of document.querySelectorAll('nldd-sheet')) sheet.hide?.();
+  for (const melding of document.querySelectorAll('body > nldd-notification')) melding.remove();
   el('titelbalk').setAttribute('text', 'Ruimte');
   el('titelbalk').setAttribute('supporting-text', 'Vergrendeld');
 

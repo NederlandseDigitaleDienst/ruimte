@@ -158,3 +158,33 @@ test('een oud, plat exportbestand kan nog steeds geïmporteerd worden', async ()
   assert.equal(gelezen.wasVersleuteld, false);
   assert.equal(gelezen.state.personen[0].naam, 'G. Hopper');
 });
+
+test('een envelop met minder rondes gaat bij het ontgrendelen over op de huidige', async () => {
+  const { mod, stub } = await verseModule();
+  const krypto = await import('../src/krypto.js');
+  const oud = await krypto.maakEnvelop('geheim', JSON.stringify(plaatje));
+  oud.envelop.kdf.iteraties = 1000; // alsof de envelop van een oudere versie is
+  // Opnieuw versleutelen met die lagere waarde, anders klopt de sleutel niet.
+  const zwak = await krypto.leidSleutelAf('geheim', krypto.uitBase64(oud.envelop.kdf.salt), 1000);
+  oud.envelop.canary = await krypto.versleutel(zwak, 'ruimte-canary');
+  oud.envelop.inhoud = await krypto.versleutel(zwak, JSON.stringify(plaatje));
+  stub.setItem('ruimte-v1', JSON.stringify(oud.envelop));
+
+  const terug = await mod.ontgrendel('geheim', plaatje);
+  assert.equal(terug.personen[0].naam, 'G. Hopper');
+  const na = JSON.parse(stub.getItem('ruimte-v1'));
+  assert.equal(na.kdf.iteraties, krypto.KDF_ITERATIES, 'de opslag staat nu op de huidige sterkte');
+  assert.notEqual(na.kdf.salt, oud.envelop.kdf.salt, 'met vers salt');
+});
+
+test('een __proto__-sleutel in een bestand haalt het prototype van de state niet om', async () => {
+  const { mod } = await verseModule();
+  await mod.zetWachtwoord('geheim', plaatje);
+  const bestand = JSON.parse(
+    '{"personen":[],"scenarios":[{"id":"s"}],"__proto__":{"vervuild":true}}'
+  );
+  mod.vervangState(bestand);
+  const state = mod.huidigeState();
+  assert.equal(state.vervuild, undefined);
+  assert.equal(Object.getPrototypeOf(state), Object.prototype);
+});
