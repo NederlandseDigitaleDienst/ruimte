@@ -1,0 +1,64 @@
+# Machine-leesbare metadata volgens de publiccode.yml-standaard, voor de
+# open-sourcecatalogus op developer.overheid.nl.
+
+publiccodeYmlVersion: "0.7"
+
+name: Ruimte
+url: "https://github.com/NederlandseDigitaleDienst/ruimte"
+landingURL: "https://nederlandsedigitaledienst.github.io/ruimte/"
+
+softwareType: standalone/web
+developmentStatus: beta
+
+platforms:
+  - web
+
+categories:
+  - hr
+
+description:
+  nl:
+    shortDescription: >-
+      Werkinstrument voor het samenstellen van een formatie: hoeveel plekken
+      er zijn, wie erop staat, en of het geheel nog klopt.
+    longDescription: >-
+      Ruimte is een werkinstrument voor het samenstellen van een formatie,
+      bedoeld om open te hebben tijdens een gesprek. Het aantal plekken, het
+      aantal mensen en de vraag of niemand vergeten is, wordt bij
+      organisatievorming vaak met de hand bijgehouden in een spreadsheet of
+      een tekening. Ruimte herberekent de stand bij elke wijziging: plekken,
+      fte, mensen, wie nog geen plek heeft, en wat het kost.
+
+      Negen controles draaien continu mee, van de vraag of iedereen een plek
+      heeft tot de verdeling tussen teams. De formatie is te bekijken als
+      werkweergave, als organogram, per persoon, en als vergelijking tussen
+      scenario's. De tool draait volledig in de browser, zonder server en
+      zonder build, met web components uit het NLDD Designsysteem. De opslag
+      is versleuteld met een sleutel die uit een wachtwoord wordt afgeleid.
+    features:
+      - Formatie met plekken, schaal, fte en bezetting
+      - Scenario's naast elkaar vergelijken
+      - Negen doorlopende controles op de formatie
+      - Versleutelde opslag in de browser
+      - Ongedaan maken van wijzigingen
+
+legal:
+  license: EUPL-1.2
+  mainCopyrightOwner: Nederlandse Digitale Dienst
+
+maintenance:
+  type: internal
+  contacts:
+    - name: Nederlandse Digitale Dienst
+      email: opensource@minbzk.nl
+
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - nl
+
+intendedAudience:
+  countries:
+    - NL
+  scope:
+    - government
