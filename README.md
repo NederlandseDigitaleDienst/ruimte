@@ -155,3 +155,7 @@ Let op bij GitHub Pages: `naam.github.io/ruimte/` deelt zijn oorsprong, en dus
 zijn browseropslag, met elke andere Pages-site van hetzelfde account of dezelfde
 organisatie. Zet de tool op een eigen domein of in een organisatie zonder
 andere Pages-sites.
+
+## Licentie
+
+Ruimte valt onder de [EUPL-1.2](LICENSE). Hoe je een kwetsbaarheid meldt, hoe je bijdraagt en de gedragscode staan in de [standaardbestanden van de organisatie](https://github.com/NederlandseDigitaleDienst/.github).
